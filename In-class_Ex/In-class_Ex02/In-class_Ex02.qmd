@@ -1,0 +1,145 @@
+---
+title: "In-class_Ex02"
+editor: visual
+---
+
+## Installing packages
+
+```{r}
+pacman::p_load(sf, tidyverse, funModeling)
+
+```
+
+## GeoBoundaries data set
+
+```{r}
+geoNGA <- st_read("data/geospatial/", layer = "geoBoundaries-NGA-ADM2") |>  
+st_transform(crs = 26392)
+```
+
+## The NGA data set
+
+```{r}
+NGA <- st_read("Data/geospatial/",
+               layer = "nga_admbnda_adm2_osgof_20190417") %>%
+  st_transform(crs = 26392)
+```
+
+## Importing Aspatial data
+
+```{r}
+pacman::p_load(sf, tidyverse, funModeling)
+wp_nga <- read_csv("data/aspatial/WPdx.csv") %>%
+  filter(`#clean_country_name` == "Nigeria")
+```
+
+## Converting water point data into sf point features
+
+if the dataframe has long and latt, use st_as_sf, and put coords = c("long", "latt") to convert to sf object
+
+```{r}
+wp_nga$Geometry = st_as_sfc(wp_nga$`New Georeferenced Column`)
+wp_nga
+
+wp_sf <-  st_sf(wp_nga, crs=4326) #convert to sf, tell R what crs used for projection 
+wp_sf
+```
+
+## Projection Transformation
+
+## Converting Aspatial Data into Geospatial
+
+```{r}
+wp_nga$Geometry = st_as_sfc(wp_nga$`New Georeferenced Column`)
+
+wp_nga
+
+wp_sf<-st_sf(wp_nga, crs=4326)
+wp_sf
+```
+
+## Projection transformation
+
+```{r}
+wp_sf <- wp_sf %>%
+  st_transform(crs = 26392)
+```
+
+## Excluding redundant fields
+
+```{r}
+NGA<- NGA |> 
+  select(c(3:4, 8:9))
+```
+
+## Checking for duplicate name
+
+```{r}
+NGA$ADM2_EN[duplicated(NGA$ADM2_EN)==TRUE]
+```
+
+```{r}
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+NGA$ADM2_EN[94] <- "Bassa, Kogi"
+```
+
+## Data wrangling
+
+```{r}
+wp_sf_nga <- wp_sf |> 
+  rename(status_clean = '#status_clean') |> 
+  select(status_clean) |> 
+  mutate(status_clean = replace_na(
+    status_clean, "unknown"
+  ))
+```
+
+## Extracting water point data
+
+```{r}
+wp_functional <- wp_sf_nga |> 
+  filter(status_clean %in%
+           c("Functional",
+             "Functional but not in use",
+             "Functional but needs repair"))
+```
+
+The code chunk below is used to extract nonfunctional waterpoint
+
+```{r}
+wp_nonfunctional <- wp_sf_nga |> 
+  filter(status_clean %in% 
+           c("Abandoned/Decommissioned",
+             "Abandoned",
+             "Non-Functional due to dry season",
+             "Non-Functional",
+             "Non functional due to dry season"))
+```
+
+```{r}
+wp_unknown <- wp_sf_nga |> 
+  filter(status_clean %in% 
+           c("unknown"))
+```
+
+```{r}
+NGA_wp <- NGA %>%   
+  mutate(`total_wp` = lengths(
+    st_intersects(NGA, wp_sf_nga))) %>%   
+  mutate(`wp_functional` = lengths(     
+    st_intersects(NGA, wp_functional))) %>%   
+  mutate(`wp_nonfunctional` = lengths(     
+    st_intersects(NGA, wp_nonfunctional))) %>%   
+  mutate(`wp_unknown` = lengths(     
+    st_intersects(NGA, wp_unknown)))
+```
+
+## Saving the analytical data in rds format
+
+```{r}
+write_rds(NGA_wp, "data/rds/NGA_wp.rds")
+```
