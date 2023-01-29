@@ -1,0 +1,131 @@
+---
+title: "In-class Exercise 3: Analytical Mapping"
+date: "16 january 2023"
+date-modified: "`r Sys.Date()`"
+number-sections: true
+format: html
+execute: 
+  echo: true
+  eval: true
+  warning: false
+editor: visual
+---
+
+## Installing packages
+
+```{r}
+pacman::p_load(sf, tidyverse, tmap)
+```
+
+Bring data file into R
+
+```{r}
+NGA_wp <- read_rds("data/rds/NGA_wp.rds")
+```
+
+## Visualising functional water pumps
+
+```{r}
+p1<-tm_shape(NGA_wp) +
+  tm_fill("wp_functional",
+          n=10,
+          style="equal",
+          palette="Blues")+
+  tm_borders(lwd = 0.1,
+             alpha = 1) +
+  tm_layout(main.title= "Distribution of functional water point by LGAs", legend.outside = FALSE)
+```
+
+## Visualising non-functional water pumps
+
+```{r}
+p2<-tm_shape(NGA_wp) +
+  tm_fill("total_wp",
+          n=10,
+          style="equal",
+          palette="Blues")+
+  tm_borders(lwd = 0.1,
+             alpha = 1) +
+  tm_layout(main.title= "Distribution of total water point by LGAs", legend.outside = FALSE)
+```
+
+## Putting the two maps together
+
+```{r}
+tmap_arrange(p2, p1, nrow=1)
+```
+
+## Plotting map of rate
+
+```{r}
+NGA_wp <- NGA_wp |> 
+  mutate(pct_functional=wp_functional/total_wp) |> 
+  mutate(pct_nonfunctional=wp_nonfunctional/total_wp)
+```
+
+```{r}
+tm_shape(NGA_wp) +
+  tm_fill("pct_functional",
+          n=10,
+          style="equal",
+          palette="Blues", 
+          legend.hist = TRUE)+
+  tm_borders(lwd = 0.1,
+             alpha = 1) +
+  tm_layout(main.title= "Rate map of functional water point by LGAs", legend.outside = TRUE)
+```
+
+## Percentile map
+
+special type of quantile map with 6 specific categories
+
+### Data preparation
+
+exclude records with NA
+
+```{r}
+NGA_wp <- NGA_wp |> 
+  drop_na()
+```
+
+Creating customised classification and extracting values
+
+```{r}
+percent<- c(0, .01, .1, .5, .9, .99,1)
+var <- NGA_wp["pct_functional"] |> 
+  st_set_geometry(NULL)
+quantile(var[,1], percent)
+```
+
+Create function
+
+```{r}
+# creating a function to do whatever we did above so we can insert different objects to do the same thing
+get.var <- function(vname, df) {
+  v <- df[vname] %>%
+    st_set_geometry(NULL)
+    v <- unname(v[,1])
+  return(v)
+}
+```
+
+Plot function
+
+```{r}
+percentmap <- function(vname, df, legtitle=NA, mtitle="Percentile Map") {
+  percent <- c(0, .01, .1, .5, .9, .99, 1)
+  var <- quantile(var, percent)
+  bperc <- quantile(var, percent)
+  tm_shape(df) +
+  tm_polygons() + 
+  tm_shape(df) + 
+    tm_fill(vname,
+            title=legtitle,
+            breaks=bperc,
+            palette="Blues",
+            labels=c("< 1%", "1% - 10%", "10% - 50%", "50% - 90%", "90%- 99%", "99% - 100%")) + 
+    tm_borders() +
+    tm_layout(main.title = mtitle,
+              title.position = c("right", "bottom"))
+}
+```
