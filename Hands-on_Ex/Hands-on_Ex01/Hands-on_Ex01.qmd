@@ -1,0 +1,186 @@
+---
+title: "Hands-on_Ex01"
+editor: visual
+---
+
+# Hands on Exercise 1
+
+## 1.2 Data Acquisition
+
+In acquiring the data sets, we use commands from the sf package. Datasets acquired are allocated to variables for convenience to call out in subsequent sections. mpsz is a polygon feature data in a shapefile format, in svy21 PCS. Cyclingpath is a polyline feature in shapefile in svy21 PCS. preschool is a point feature data in kml format in wgs 84 CRS.
+
+```{r}
+library(sf)
+
+mpsz <- st_read(dsn = "data/geospatial", layer = "MP14_SUBZONE_WEB_PL")
+
+cyclingpath <- st_read(dsn = "data/geospatial", layer = "CyclingPathGazette")
+
+preschool<-st_read("data/geospatial/preschools-location.kml")
+```
+
+## 1.5 Checking the content of a simple feature data frame
+
+st_geometry() displays basic information of the feature class, like the type of geometry, geographic extent of the features, CRS used (SVY21). plot(mpsz) gives a multiplot of all attributes (up to 9 in this case).
+
+```{r}
+st_geometry(mpsz)
+
+library(tidyverse)
+glimpse(mpsz)
+
+head(mpsz, n=5)
+
+plot(mpsz)
+```
+
+We can choose to plot only the geometry by using st_geometry in plot function. In the next example, we plot a specific row of data.
+
+```{r}
+plot(st_geometry(mpsz))
+
+plot(mpsz["PLN_AREA_N"])
+```
+
+## 1.7 Working with Projection
+
+To perform geoprocessing using 2 geospatial data, we need to ensure that both geospatial data are projected using similar coordinate system. We can do so via **projection transformation.**
+
+when viewing details of mpsz sf data using st_crs(), we realise that EPSG code is 9001 instead of 3414.
+
+```{r}
+st_crs(mpsz)
+```
+
+We assign the correct EPSG code to mpsz data frame using st_set_crs(). Check again that EPSG code has been changed.
+
+```{r}
+mpsz3414<-st_set_crs(mpsz, 3414)
+
+st_crs(mpsz3414)
+```
+
+It is also common for us to transform the data from geographic coordinate system to projected coordinate system. GCS is not appropriate if we want to analyse distance of conduct area measurements.
+
+In this case, preschool is in GCS, WGS84. we convert it into SVY21 (PCS) using st_transform().
+
+```{r}
+preschool3414 <- st_transform(preschool, crs=3414)
+preschool3414
+```
+
+## 1.8 Importing and Converting an Aspatial data
+
+what is aspatial data? among data fields, there are 2 fields that capture the x- and y- coordinates of the data points.
+
+In the first step, we read the csv and assign it to an R object (tibble data frame)
+
+```{r}
+listings <- read_csv("~/Desktop/Y2S2/Geospatial Analytics/Lesson 2/Hands-on_Ex01/data/aspatial/listings.csv")
+
+list(listings)
+```
+
+Next, we can convert the listing data frame into a SF data frame using st_as_sf().
+
+Arguments:
+
+-   coords: provide column name of x and y coordinates
+
+-   crs: provide coordinates system in epsg format.
+
+    -   EPSG: 4626 is wgs64 Geographic Coordinate System
+
+    -   EPSG: 3414 is Singapore SVY21 Projected Coordinate System
+
+Then, we use st_transform() to transform SF data frame into svy21 projected coordinate system.
+
+```{r}
+listings_sf<- st_as_sf(listings,
+                       coords = c("longitude", "latitude"),
+                       crs=4326) |> 
+  st_transform(crs = 3414)
+
+glimpse(listings_sf)
+```
+
+## 1.9 Geoprocessing with sf Package
+
+Task: In upgrading the existing cycling path, the authority needs to acquire 5 metres of reserved land on both sides of the current cycling path. You are tasked to determine the extent of land needed to be acquired and the total land area.
+
+1.  We use st_buffer() to compute the 5 meter buffer around cycling path
+2.  Use st_area() to calculate area of the buffers
+3.  Use sum() to sum all area of land
+
+```{r}
+buffer_cycling <- st_buffer(cyclingpath, dist=5, nQuadSegs = 30)
+
+buffer_cycling$AREA <- st_area(buffer_cycling)
+
+sum(buffer_cycling$AREA)
+```
+
+Task: pre-school service group wants to find out the number of pre-schools in each Planning Subzone.
+
+1.  Identify pre schools in each subzone: use st_intersects and overall 2 sfs: mpsz2414 and preschool3414 together
+2.  Calculate the number of pre schools in each subzone: use length()
+3.  check summary statistics with summary()
+4.  List the planning subzone with the most number of pre-schools using top_n()
+
+```{r}
+mpsz3414$`PreSch Count`<-lengths(st_intersects(mpsz3414, preschool3414))
+
+summary(mpsz3414$`PreSch Count`)
+
+top_n(mpsz3414,1,`PreSch Count`)
+```
+
+Task: Calculate the density of pre-school by planning subzone
+
+1.  Use st_area() to derive the area of each planning subzone
+2.  use mutate to compute the presch density (presch count/Area \* 10000)
+
+```{r}
+mpsz3414$Area <- mpsz3414 |> 
+  st_area()
+
+mpsz3414<-mpsz3414 |> 
+  mutate(`PreSch Density` = `PreSch Count`/Area*1000000)
+```
+
+## 1.10 Exploratory Data Analysis (EDA)
+
+Plotting a histogram to reveal the distribution of PreSch Density
+
+```{r}
+hist(mpsz3414$`PreSch Density`)
+```
+
+To improve the quality, and move beyond the limitations of hist(), we can use ggplot functions instead.
+
+```{r}
+ggplot(data=mpsz3414, 
+       aes(x= as.numeric(`PreSch Density`)))+
+  geom_histogram(bins=20, 
+                 color="black", 
+                 fill="light blue") +
+  labs(title = "Are pre-school even distributed in Singapore?",
+       subtitle= "There are many planning sub-zones with a single pre-school, on the other hand, \nthere are two planning sub-zones with at least 20 pre-schools",
+      x = "Pre-school density (per km sq)",
+      y = "Frequency")
+```
+
+Task: use ggplot2 to plot a scatterplot showing the relationship between Pre-school Density and Pre-school Count.
+
+```{r}
+ggplot(data=mpsz3414, 
+       aes(y = `PreSch Count`, 
+           x= as.numeric(`PreSch Density`)))+
+  geom_point(color="black", 
+             fill="light blue") +
+  xlim(0, 40) +
+  ylim(0, 40) +
+  labs(title = "",
+      x = "Pre-school density (per km sq)",
+      y = "Pre-school count")
+```
