@@ -1,0 +1,60 @@
+---
+title: "In-class Excerise 4: Spatial Point Patterns Analysis"
+date: "30 January 2023"
+date-modified: "`r Sys.Date()`"
+number-sections: true
+format: html
+execute: 
+  echo: true
+  eval: true
+  warning: false
+editor: visual
+---
+
+Getting Started
+
+```{r}
+pacman::p_load(maptools, sf, raster, spatstat, tmap)
+```
+
+Things to learn from this code chunk
+
+```{r}
+childcare_sf <- st_read("data/child-care-services-geojson.geojson") %>%
+  st_transform(crs = 3414)
+```
+
+All spatial data: use projected coordinate system instead of geographic coordinate system.
+
+```{r}
+sg_sf <- st_read(dsn = "data", layer="CostalOutline")
+```
+
+Source is already in SVY21.
+
+```{r}
+mpsz_sf <- st_read(dsn = "data", 
+                layer = "MP14_SUBZONE_WEB_PL")
+```
+
+spatstat: needs conversion from sf to ppp. sf--\> spatial data frame--\> generic spatial object--\> ppp format.
+
+```{r}
+childcare <- as_Spatial(childcare_sf)
+mpsz <- as_Spatial(mpsz_sf)
+sg <- as_Spatial(sg_sf)
+```
+
+Converting spatial class into generic sp format
+
+```{r}
+childcare_sp <- as(childcare, "SpatialPoints")
+sg_sp <- as(sg, "SpatialPolygons")
+```
+
+Convert generic sp format into ppp format
+
+```{r}
+childcare_ppp <- as(childcare_sp, "ppp")
+childcare_ppp
+```

@@ -1,5 +1,5 @@
 ---
-title: "Hands-on Exercise 4: Spatial Point Patterns Analysis"
+title: "Hands-on Exercise 3: Spatial Point Patterns Analysis"
 date: "29 january 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
