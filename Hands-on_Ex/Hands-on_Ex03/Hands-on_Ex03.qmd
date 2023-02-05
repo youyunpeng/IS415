@@ -11,6 +11,10 @@ execute:
 editor: visual
 ---
 
+## Introduction
+
+Spatial Point Pattern Analysis is the evaluation of the pattern or distribution, of a set of points on a surface.
+
 ## Installing and Loading R packages
 
 ```{r}
@@ -18,6 +22,8 @@ pacman::p_load(maptools, sf, raster, spatstat, tmap)
 ```
 
 ## Spatial Data Wrangling
+
+We first use st_red() to import geospatial data into R
 
 ```{r}
 childcare_sf <- st_read("data/child-care-services-geojson.geojson") %>%
@@ -36,10 +42,14 @@ mpsz_sf <- st_read(dsn = "data",
 Using the appropriate **sf** function you learned in Hands-on Exercise 2, retrieve the referencing system information of these geospatial data.
 
 ```{r}
+st_crs(childcare_sf)
+
 st_crs(sg_sf)
 
 st_crs(mpsz_sf)
 ```
+
+Notice that except childcare_sf, both mpsz_sf and sg_sf do not have proper crs information.
 
 Using the method you learned in Lesson 2, assign the correct crs to mpsz_sf and sg_sf simple feature data frames.
 
@@ -51,6 +61,13 @@ mpsz_sf<-st_transform(mpsz_sf, crs = 3414)
 
 DIY: create map as given
 
+```{r}
+tmap_mode("plot")
+
+qtm(mpsz_sf)+
+qtm(childcare_sf)
+```
+
 Alternatively, we can prepare a pin map by using the code chunk below. tmap mode is set to view: interactive pin map: allows us to navigate and zoom around the map freely.
 
 ```{r}
@@ -58,6 +75,8 @@ tmap_mode('view')
 tm_shape(childcare_sf)+
   tm_dots()
 ```
+
+Set map mode back to plot, to avoid having an excessive number of interactive maps in one document
 
 ```{r}
 tmap_mode('plot')
@@ -113,6 +132,8 @@ Taking a quick look at summary statistics of newly created ppp object
 ```{r}
 summary(childcare_ppp)
 ```
+
+Notice the warning message about duplicates. In ppp analysis, an issue of significance is the presence of duplicates. Points cannot be coincident.
 
 ### Handling duplicated points
 
@@ -201,6 +222,8 @@ Display the kernel density derived using plot()
 plot(kde_childcareSG_bw)
 ```
 
+We realise that the density values of the output range is extremely small to comprehend. We will conduct rescaling of the KDE values in the subsequent step
+
 Retrieve the bandwidth used to compute kde layer using code chunk
 
 ```{r}
@@ -257,7 +280,7 @@ plot(kde_childcareSG.ppl, main = "bw.ppl")
 
 ### Working with different kernel methods
 
-Computing 3 more kernel density estimations by using these 3 kernel functions
+By default, the kernel method used in *density.ppp()* is *gaussian*. But there are three other options, namely: Epanechnikov, Quartic and Dics. Computing 3 more kernel density estimations by using these 3 kernel functions
 
 ```{r}
 par(mfrow=c(2,2))

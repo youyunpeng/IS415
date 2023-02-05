@@ -1,5 +1,5 @@
 ---
-title: "Hands-on Ex02"
+title: "Hands-on Exercise 2: Choropleth Mapping with R"
 editor: visual
 ---
 
@@ -9,7 +9,9 @@ editor: visual
 pacman::p_load(sf, tmap, tidyverse)
 ```
 
-## importing data
+## Importing data
+
+MP14_SUBZONE_WEB_PL is in ESRI shapefile format
 
 ```{r}
 mpsz <- st_read(dsn = "Data/Geospatial", 
@@ -19,6 +21,8 @@ mpsz
 ```
 
 ## Importing attribute data into R
+
+Singapore Residents by Planning Area / Subzone, Age Group, Sex and Type of Dwelling, June 2011-2020 in csv format
 
 ```{r}
 popdata <- read_csv("Data/Aspatial/respopagesexfa2011to2020.csv")
@@ -54,7 +58,7 @@ mutate(`DEPENDENCY` = (`YOUNG` + `AGED`)
 ```{r}
 popdata2020 <- popdata2020 %>%
   mutate_at(.vars = vars(PA, SZ), 
-          .funs = funs(toupper)) %>%
+          .funs = funs(toupper)) %>% #converting column inputs to uppercase
   filter(`ECONOMY ACTIVE` > 0)
 
 ```
@@ -63,15 +67,21 @@ popdata2020 <- popdata2020 %>%
 
 ```{r}
 mpsz_pop2020 <- left_join(mpsz, popdata2020,
-                          by = c("SUBZONE_N" = "SZ"))
+                          by = c("SUBZONE_N" = "SZ"))#left_join is used to ensure output will be a simple feature dataframe
 
 write_rds(mpsz_pop2020, "Data/rds/mpszpop2020.rds")
 ```
 
 ## Chloropleth Mapping Geospatial Data Using tmap
 
+Two approaches can be used to prepare thematic map using *tmap*, they are:
+
+-   Plotting a thematic map quickly by using *qtm()*.
+
+-   Plotting highly customisable thematic map by using tmap elements.
+
 ```{r}
-tmap_mode("plot")
+tmap_mode("plot") #plot option is for static map, "view" can be used for interactive mode
 qtm(mpsz_pop2020, 
     fill = "DEPENDENCY")
 ```
@@ -109,7 +119,7 @@ Using tm_polygons
 
 ```{r}
 tm_shape(mpsz_pop2020)+
-  tm_polygons("DEPENDENCY")
+  tm_polygons("DEPENDENCY") #insert selected attribute into function
 ```
 
 Using tm_fill() alone, where we only created filled polygons without borders
@@ -139,15 +149,18 @@ other arguments that can be used with tm_borders()
 
 1.  plotting chloropleth maps with built in classification methods
 
+In the example below, we see a quantile data classification that used 5 classes.
+
 ```{r}
 tm_shape(mpsz_pop2020)+
   tm_fill("DEPENDENCY",
           n = 5,
           style = "jenks") +
   tm_borders(alpha = 0.5)
+
 ```
 
-Uses a quantile data classification that uses 5 classes.
+The below example uses equal data classification method.
 
 ```{r}
 tm_shape(mpsz_pop2020)+
@@ -163,7 +176,7 @@ See the dependency bins, the intervals are more evenly distributed as compared t
 
 ## Customising breaks in chloropleth maps
 
-Descriptive statistics of DEPENDENCY field
+Descriptive statistics of DEPENDENCY field to figure out what breaks we should set tm_fill to.
 
 ```{r}
 summary(mpsz_pop2020$DEPENDENCY)

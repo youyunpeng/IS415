@@ -79,12 +79,16 @@ NGA$ADM2_EN[duplicated(NGA$ADM2_EN)==TRUE]
 ```
 
 ```{r}
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
-NGA$ADM2_EN[94] <- "Bassa, Kogi"
+# Get all the duplicated LGA names
+duplicated_LGA <- NGA$ADM2_EN[duplicated(NGA$ADM2_EN)==TRUE]
+
+# Get all the indices with names that are included in the duplicated LGA names
+duplicated_indices <- which(NGA$ADM2_EN %in% duplicated_LGA)
+
+# For every index in the duplicated_indices, concatenate the two columns with a comma
+for (ind in duplicated_indices) {
+  NGA$ADM2_EN[ind] <- paste(NGA$ADM2_EN[ind], NGA$ADM1_EN[ind], sep=", ")
+}
 ```
 
 ## Data wrangling

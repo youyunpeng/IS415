@@ -12,16 +12,16 @@ In acquiring the data sets, we use commands from the sf package. Datasets acquir
 ```{r}
 library(sf)
 
-mpsz <- st_read(dsn = "data/geospatial", layer = "MP14_SUBZONE_WEB_PL")
+mpsz <- st_read(dsn = "data/geospatial", layer = "MP14_SUBZONE_WEB_PL")#we use st_read to import a shapefile into R as a polygon feature dataframe
 
 cyclingpath <- st_read(dsn = "data/geospatial", layer = "CyclingPathGazette")
 
-preschool<-st_read("data/geospatial/preschools-location.kml")
+preschool<-st_read("data/geospatial/preschools-location.kml")#different from the previous two simple feature data frame, preschool is in wgs84 coordinates system
 ```
 
 ## 1.5 Checking the content of a simple feature data frame
 
-st_geometry() displays basic information of the feature class, like the type of geometry, geographic extent of the features, CRS used (SVY21). plot(mpsz) gives a multiplot of all attributes (up to 9 in this case).
+*st_geometry()* displays basic information of the feature class, like the type of geometry, geographic extent of the features, CRS used (SVY21). plot(mpsz) gives a multiplot of all attributes (up to 9 in this case).
 
 ```{r}
 st_geometry(mpsz)
@@ -71,7 +71,7 @@ preschool3414
 
 ## 1.8 Importing and Converting an Aspatial data
 
-what is aspatial data? among data fields, there are 2 fields that capture the x- and y- coordinates of the data points.
+what is aspatial data? among data fields, there are 2 fields that capture the x- and y- coordinates of the data points. In this segment, we look at how to convert CSV data into an SF dataframe.
 
 In the first step, we read the csv and assign it to an R object (tibble data frame)
 
