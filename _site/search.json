@@ -369,5 +369,26 @@
     "title": "In-class Excerise 4: Spatial Point Patterns Analysis",
     "section": "3 Data Wrangling for Spatstat",
     "text": "3 Data Wrangling for Spatstat\nspatstat: needs conversion from sf to ppp. sf–> spatial data frame–> generic spatial object–> ppp format.\n\nchildcare <- as_Spatial(childcare_sf)\nmpsz <- as_Spatial(mpsz_sf)\nsg <- as_Spatial(sg_sf)\n\nConverting spatial class into generic sp format\n\nchildcare_sp <- as(childcare, \"SpatialPoints\")\nsg_sp <- as(sg, \"SpatialPolygons\")\n\nConvert generic sp format into ppp format\n\nchildcare_ppp <- as(childcare_sp, \"ppp\")\nchildcare_ppp\n\nPlanar point pattern: 1545 points\nwindow: rectangle = [11203.01, 45404.24] x [25667.6, 49300.88] units"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex05/In-class_Ex05.html",
+    "href": "In-class_Ex/In-class_Ex05/In-class_Ex05.html",
+    "title": "In-class Excerise 5: Advanced Spatial Point Patterns Analysis",
+    "section": "",
+    "text": "pacman::p_load(tidyverse, tmap, sf, sfdep)"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex05/In-class_Ex05.html#importing-data",
+    "href": "In-class_Ex/In-class_Ex05/In-class_Ex05.html#importing-data",
+    "title": "In-class Excerise 5: Advanced Spatial Point Patterns Analysis",
+    "section": "2 Importing Data",
+    "text": "2 Importing Data\n\nstudyArea<-st_read(\"data\",\n                   layer=\"study_area\") |> \n  st_transform(crs=3829)\n\nReading layer `study_area' from data source \n  `/Users/pengyouyun/youyunpeng/IS415/In-class_Ex/In-class_Ex05/data' \n  using driver `ESRI Shapefile'\nSimple feature collection with 7 features and 7 fields\nGeometry type: POLYGON\nDimension:     XY\nBounding box:  xmin: 121.4836 ymin: 25.00776 xmax: 121.592 ymax: 25.09288\nGeodetic CRS:  TWD97\n\nstores<-st_read(\"data\",\n                   layer=\"stores\") |> \n  st_transform(crs=3829)\n\nReading layer `stores' from data source \n  `/Users/pengyouyun/youyunpeng/IS415/In-class_Ex/In-class_Ex05/data' \n  using driver `ESRI Shapefile'\nSimple feature collection with 1409 features and 4 fields\nGeometry type: POINT\nDimension:     XY\nBounding box:  xmin: 121.4902 ymin: 25.01257 xmax: 121.5874 ymax: 25.08557\nGeodetic CRS:  TWD97\n\n\nVisualising the sf layers\n\ntmap_mode(\"view\")\ntm_shape(studyArea)+ #always display polygons before points\n  tm_polygons()+\n  tm_shape(stores)+\n  tm_dots(col=\"Name\",\n           size=0.01,\n           border.col=\"black\",\n           border.lwd=0.5)+\n  tm_view(set.zoom.limits = c(12,16))"
+  },
+  {
+    "objectID": "In-class_Ex/In-class_Ex05/In-class_Ex05.html#local-colocation-coefficient",
+    "href": "In-class_Ex/In-class_Ex05/In-class_Ex05.html#local-colocation-coefficient",
+    "title": "In-class Excerise 5: Advanced Spatial Point Patterns Analysis",
+    "section": "3 Local Colocation coefficient",
+    "text": "3 Local Colocation coefficient\nfor colocation coefficient\n\ncharacter or factor vector\nneighbour list\n\n\nnb<-include_self(\n  st_knn(st_geometry(stores), 6)# search for 6 nearest neighbours, using adaptive method, to always use even number, since we include self, always get one group to be more than another\n)\n\nwt<-st_kernel_weights(nb,\n                      stores,\n                      \"gaussian\",\n                      adaptive=TRUE) #convert into a weight metrics, see table, under column value: shows the distance weight allocated for each neighbour\n\nFamilyMart<-stores |> \n  filter(Name == \"Family Mart\")\nA<- FamilyMart$Name\n\nSevenEleven<-stores |> \n  filter(Name == \"7-Eleven\")\nB<- SevenEleven$Name\n\nLCLQ<-local_colocation(A, B, nb, wt, 49) #A is my target, B is the neighbour im interested in, nb is nearest neighbour list, wt is the weight. We would immediately get p value from this\n\n#NA means cannot find any useful index to work with\n\nLCLQ_stores<-cbind(stores,LCLQ) # inorder to map data, we have to comnbine the stores and colocation values. we put stores as the first one, as we want to keep the geometric properties in the object\n\n# dont have unique identifier, ie cannot use left join or right join\n\ntmap_mode(\"view\")\ntm_shape(studyArea) +\n  tm_polygons() + \ntm_shape(LCLQ_stores) +\n  tm_dots(col = \"X7.Eleven\",\n          size = 0.01,\n          border.col=\"black\",\n           border.lwd=0.5)+\n  tm_view(set.zoom.limits = c(12,16))\n\n\n\n\n\n#able to visualise the colocation points/isolated points \n\nst_knn: identifies the k nearest neighbors for given point geometry"
   }
 ]

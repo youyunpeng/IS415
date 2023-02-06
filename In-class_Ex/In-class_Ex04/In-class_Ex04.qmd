@@ -72,3 +72,14 @@ Convert generic sp format into ppp format
 childcare_ppp <- as(childcare_sp, "ppp")
 childcare_ppp
 ```
+
+Handling duplicated point events
+
+```{r}
+childcare_ppp_jit <- rjitter(childcare_ppp,
+                             retry=TRUE,
+                             nsim=1,
+                             drop=TRUE)
+
+any(duplicated(childcare_ppp_jit))
+```

@@ -1,0 +1,93 @@
+---
+title: "In-class Excerise 5: Advanced Spatial Point Patterns Analysis"
+date: "6 Feb 2023"
+date-modified: "`r Sys.Date()`"
+number-sections: true
+format: html
+execute: 
+  echo: true
+  eval: true
+  warning: false
+editor: visual
+---
+
+## Getting Started
+
+```{r}
+pacman::p_load(tidyverse, tmap, sf, sfdep)
+```
+
+## Importing Data
+
+```{r}
+studyArea<-st_read("data",
+                   layer="study_area") |> 
+  st_transform(crs=3829)
+
+stores<-st_read("data",
+                   layer="stores") |> 
+  st_transform(crs=3829)
+```
+
+Visualising the sf layers
+
+```{r}
+tmap_mode("view")
+tm_shape(studyArea)+ #always display polygons before points
+  tm_polygons()+
+  tm_shape(stores)+
+  tm_dots(col="Name",
+           size=0.01,
+           border.col="black",
+           border.lwd=0.5)+
+  tm_view(set.zoom.limits = c(12,16))
+```
+
+## Local Colocation coefficient
+
+for colocation coefficient
+
+-   character or factor vector
+
+-   neighbour list
+
+```{r}
+nb<-include_self(
+  st_knn(st_geometry(stores), 6)# search for 6 nearest neighbours, using adaptive method, to always use even number, since we include self, always get one group to be more than another
+)
+
+wt<-st_kernel_weights(nb,
+                      stores,
+                      "gaussian",
+                      adaptive=TRUE) #convert into a weight metrics, see table, under column value: shows the distance weight allocated for each neighbour
+
+FamilyMart<-stores |> 
+  filter(Name == "Family Mart")
+A<- FamilyMart$Name
+
+SevenEleven<-stores |> 
+  filter(Name == "7-Eleven")
+B<- SevenEleven$Name
+
+LCLQ<-local_colocation(A, B, nb, wt, 49) #A is my target, B is the neighbour im interested in, nb is nearest neighbour list, wt is the weight. We would immediately get p value from this
+
+#NA means cannot find any useful index to work with
+
+LCLQ_stores<-cbind(stores,LCLQ) # inorder to map data, we have to comnbine the stores and colocation values. we put stores as the first one, as we want to keep the geometric properties in the object
+
+# dont have unique identifier, ie cannot use left join or right join
+
+tmap_mode("view")
+tm_shape(studyArea) +
+  tm_polygons() + 
+tm_shape(LCLQ_stores) +
+  tm_dots(col = "X7.Eleven",
+          size = 0.01,
+          border.col="black",
+           border.lwd=0.5)+
+  tm_view(set.zoom.limits = c(12,16))
+
+#able to visualise the colocation points/isolated points 
+```
+
+st_knn: identifies the k nearest neighbors for given point geometry

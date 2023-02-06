@@ -308,11 +308,13 @@ plot(density(childcareSG_ppp.km,
 
 ## Fixed and Adaptive KDE
 
-Compute KDE layer by defining a bandwidth of 600 meter
+Compute KDE layer by defining a bandwidth of 600 meter. Adaptive would be used when there are distinct clusters.
 
 ```{r}
 kde_childcareSG_600 <- density(childcareSG_ppp.km, sigma=0.6, edge=TRUE, kernel="gaussian")
 plot(kde_childcareSG_600)
+
+#smoother as compared to kernel 
 ```
 
 Computing KDE by using adaptive bandwidth
@@ -684,6 +686,10 @@ plot(K_tm.csr, . - r ~ r,
 
 ### Choa Chu Kang planning area
 
+In graph: anything above line: clustering, below is regular
+
+does not tell us any statistical analysis: have to use envelope method through simulations
+
 ```{r}
 L_ck = Lest(childcare_ck_ppp, correction = "Ripley")
 plot(L_ck, . -r ~ r, 
@@ -709,6 +715,8 @@ L_ck.csr <- envelope(childcare_ck_ppp, Lest, nsim = 99, rank = 1, glocal=TRUE)
 ```{r}
 plot(L_ck.csr, . - r ~ r, xlab="d", ylab="L(d)-r")
 ```
+
+if line is within simulation: fall within 95% confidence interval, although we observe clusters, it is not statistically significant. We fail to reject the null hypothesis. To reject null hypothesis, line must be above the envelope
 
 ### Tampines planning area
 
