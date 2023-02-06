@@ -11,7 +11,7 @@ execute:
 editor: visual
 ---
 
-Getting Started
+## Getting Started
 
 ```{r}
 pacman::p_load(maptools, sf, raster, spatstat, tmap)
@@ -36,6 +36,20 @@ Source is already in SVY21.
 mpsz_sf <- st_read(dsn = "data", 
                 layer = "MP14_SUBZONE_WEB_PL")
 ```
+
+## Visualising map
+
+```{r}
+tmap_mode("view")
+          tm_shape(childcare_sf)+
+            tm_dots(alpha=0.5, size=0.01)+
+            tm_view(set.zoom.limits = c(11,14))# first number is the zoom out value, second number is the zoom in value ie, first number must always be smaller than the second number
+          #we can use tm_bubbles if we are assigning specific values to each point
+          
+tmap_mode("plot")
+```
+
+## Data Wrangling for Spatstat
 
 spatstat: needs conversion from sf to ppp. sf--\> spatial data frame--\> generic spatial object--\> ppp format.
 
