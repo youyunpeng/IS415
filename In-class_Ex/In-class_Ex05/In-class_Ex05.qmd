@@ -75,6 +75,7 @@ LCLQ<-local_colocation(A, B, nb, wt, 49) #A is my target, B is the neighbour im 
 
 LCLQ_stores<-cbind(stores,LCLQ) # inorder to map data, we have to comnbine the stores and colocation values. we put stores as the first one, as we want to keep the geometric properties in the object
 
+
 # dont have unique identifier, ie cannot use left join or right join
 
 tmap_mode("view")
