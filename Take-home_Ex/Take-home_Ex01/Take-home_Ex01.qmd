@@ -269,21 +269,24 @@ With our data cleaned and in thr right format, we can move on to compute the Ker
 
 ## First-order Spatial Point Pattern Analysis
 
-### Computing kernel density Estimation using automatic bandwidth selection method
+### Computing kernel density Estimation using adaptive bandwidth selection method
+
+In spatial analysis, the choice of bandwidth is important for determining the smoothness of a surface fit to the data. The bandwidth determines the width of the smoothing kernel used in spatial smoothing techniques like kernel density estimation or local regression. We compare between two types of bandwidth methods, fixed and adaptive bandwidth, to be applied to this situation.
+
+Fixed bandwidth methods use a constant value for the bandwidth throughout the analysis, regardless of the distribution of the data. This can be useful when the data has a consistent structure, but if the data is highly variable or has multiple modes, a constant bandwidth may not provide an adequate fit to the data.
+
+Adaptive bandwidth methods, on the other hand, use a variable bandwidth that adjusts based on the local structure of the data. This allows for more flexibility in the fitting process. 
+
+From our initial plots, we can see that there is some evidence of clustering, leading to our choice of using adaptive bandwidth in our analysis.
 
 ```{r}
-funckde_auto<- density(funcppp1.km,
-                  sigma=bw.diggle,
-                  edge=TRUE,
-                  kernel="gaussian")
+funckde_adaptive<- adaptive.density(funcppp1.km, method="kernel")
 
-nonfunckde_auto<- density(nonfuncppp1.km,
-                  sigma=bw.diggle,
-                  edge=TRUE,
-                  kernel="gaussian")
+nonfunckde_adaptive<- adaptive.density(nonfuncppp1.km, method="kernel")
+
 par(mfrow=c(1,2))
-plot(funckde_auto, main="Functional Waterpoint KDE using Automatic Bandwidth")
-plot(nonfunckde_auto, main="Non-Functional Waterpoint KDE using Automatic Bandwidth")
+plot(funckde_adaptive, main="Functional Waterpoint KDE using Adaptive Bandwidth")
+plot(nonfunckde_adaptive, main="Non-Functional Waterpoint KDE using Adaptive Bandwidth")
 ```
 
 ### Convert KDE into grid object
@@ -291,9 +294,9 @@ plot(nonfunckde_auto, main="Non-Functional Waterpoint KDE using Automatic Bandwi
 Converting KDE into a gridded object that is suitable for mapping purposes.
 
 ```{r}
-gridded_kde_funckde <- as.SpatialGridDataFrame.im(funckde_auto)
+gridded_kde_funckde <- as.SpatialGridDataFrame.im(funckde_adaptive)
 
-gridded_kde_nonfunckde <- as.SpatialGridDataFrame.im(nonfunckde_auto)
+gridded_kde_nonfunckde <- as.SpatialGridDataFrame.im(nonfunckde_adaptive)
 ```
 
 ### Convert gridded output into raster
@@ -379,21 +382,21 @@ We will set a 95% confidence interval for the purpose of this study.
 [Referencing this website](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-multi-distance-spatial-cluster-analysis-ripl.htm#:~:text=Ripley's%20K%2Dfunction%20illustrates%20how,distance%20and%2For%20distance%20increment.), when the observed K value is larger than the expected K value for a particular distance, the distribution is more clustered than a random distribution at that distance. When the observed K value is smaller than the expected K value, the distribution is more dispersed than a random distribution at that distance.
 
 ```{r}
-K_Fun <- Kest(funcppp, correction = "Ripley")
+K_Fun <- Kest(funcppp1, correction = "Ripley")
 
-K_NonFun <- Kest(nonfuncppp, correction = "Ripley")
+K_NonFun <- Kest(nonfuncppp1, correction = "Ripley")
 
 par(mfrow=c(1,2))
 plot(K_Fun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
-plot(K_NonFun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
+plot(K_NonFun, .-r ~r, ylab="L(d)-r", xlab ="d(m)")
 ```
 
 2.  Generating Monte Carlo test with K-Function
 
 ```{r}
-K_Fun.csr <- envelope(funcppp, Kest, nsim = 39, rank = 1, glocal = TRUE)
+K_Fun.csr <- envelope(funcppp1, Kest, nsim = 39, rank = 1, glocal = TRUE)
 
-K_NonFun.csr <- envelope(nonfuncppp, Kest, nsim = 39, rank = 1, glocal = TRUE)
+K_NonFun.csr <- envelope(nonfuncppp1, Kest, nsim = 39, rank = 1, glocal = TRUE)
 ```
 
 3.  plot
@@ -470,7 +473,9 @@ filter(status_clean %in%
 
 #creating a status_redefined column that states if water point is either functional or non functional
 
-df<-bind_rows(func_df, nonfunc_df)
+df<-bind_rows(func_df, nonfunc_df) |> 
+  mutate(status_redefined=factor(status_redefined)) |> 
+  select(Geometry, status_redefined)
 #combining data frames into 1 df
 ```
 
@@ -542,8 +547,7 @@ LCLQ<-local_colocation(A, B, nb, wt, 39)
 Before we can plot the LCLQ values their p-values, we need to join the output of local_colocation() to the stores sf data.frame. However, a quick check of LCLQ data-frame, we can't find any field can be used as the join field. As a result, cbind() of Base R is useed.
 
 ```{r}
-LCLQ_WP<-cbind(df,LCLQ) |> 
-  na.exclude()
+LCLQ_WP<-cbind(df,LCLQ)
 ```
 
 ### Plotting LCLQ values
@@ -563,10 +567,6 @@ tm_shape(LCLQ_WP) +
   tm_view(set.zoom.limits = c(9,13))
 ```
 
-```{r}
-head(LCLQ_WP, 5)
-```
-
 ### Statistical conclusion
 
 From the statistical table, we see that the colocation coefficient is less than 1 but extremely close to one for some points.
@@ -581,53 +581,55 @@ tmap_mode("plot")
 
 ## Performing appropriate tests using second order spatial point pattern analysis technique
 
-To reinforce our analysis, we can use the second order spatial point pattern analysis to conclude the nature of dependence between functional and non-functional waterpoints--whether they are evenly distributed or clustered if the distribution of points is not random. Our hypothesis are stated below
+We will use the Cross-K Function to look into this relationship
 
 The test hypotheses are:
 
--   Ho = The distribution of functional and non-functional waterpoints are independent from each other (ie randomly distributed).
+-   Ho = The distribution of functional and non-functional waterpoints are spatially independent from each other (ie randomly distributed).
 
 -   H 1= The ditribution of functional and non-functional waterpoints are not independent from each other (ie not randomly distributed).
 
 We will set a 95% confidence interval for the purpose of this study.
 
 ### Conversion of LCLQ data into ppp
-
+In this analysis, we seek to perform marked point pattern analysis, based on the associated categorical measurement "status_redefined" in the waterpoint data. 
 ```{r}
-class(LCLQ_WP)#checking the class of LCLQ_WP
+df_spatialpoint<-df |>
+  as("Spatial") |> 
+  as("SpatialPointsDataFrame") #creating spatial point data frame from sf
 
-LCLQ_WP_spatial<-as_Spatial(LCLQ_WP)
-LCLQ_WP_sp<-as(LCLQ_WP_spatial, "SpatialPoints")
-LCLQ_WP_ppp<-as(LCLQ_WP_sp, "ppp")
+df_spatialpoint@data$status_redefined<-as.factor(df_spatialpoint@data$status_redefined) #creating a factor column for status_redefined
 
-#check for duplication
-any(duplicated(LCLQ_WP_ppp))
+df_ppp<-df_spatialpoint |> 
+  as("ppp") #converting the spatial data frame into a ppp object
+
+df_ppp_owin<-df_ppp[NGA_owin] #creating an owin object
+
+plot(df_ppp_owin, main = "df_ppp", which.marks = "status_redefined") #creating a quick plot to visualise the ppp object
 ```
 
-### Using K function to check for distribution trend
+### Using Cross K function to check for distribution trend
 
-We use the K function to analyse the trend of distribution, as done so in the earlier section.
+We use the cross-K function to analyse the trend of distribution of both functional and non-functional waterpoints.
 
 ```{r}
-K_colocation <- Kest(funcppp, correction = "Ripley")
-plot(K_colocation, xlim=c(0,500))
+Lcross.csr <- envelope(df_ppp_owin, 
+                                 Lcross, 
+                                 i="Functional", 
+                                 j="Non-functional", 
+                                 correction="border", 
+                                 nsim=39)
 ```
 
-### Conduct Monte Carlo simulations for the K estimates
-
+We can then plot our result
 ```{r}
-K_CK.csr <- envelope(LCLQ_WP_ppp, Kest, nsim = 39)
-```
-
-### Plotting our simulated points into a graph
-
-```{r}
-plot(K_CK.csr)
+plot(Lcross.csr, 
+     xlim = c(0,10000))
 ```
 
 ### Statistical conclusions
 
-From the graph, we see that there is evidence of clustering of the non-functional waterpoints about the functional waterpoints.
+From the graph above, we can conclude that there is evidence of spatial dependence between 0 to 5000, and 7000 to 8000 r values. More specifically, between 0 to 5000, functional and non-functional waterpoints tend to cluster, while between 7000 to 8000, they tend to be evenly distributed.
 
 # Self-sourced: Comparing population and waterpoint functionality
 
