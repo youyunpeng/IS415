@@ -35,36 +35,35 @@ pacman::p_load(maptools, sf, raster, spatstat, tmap, tidyverse, funModeling, sfd
 
 ### Geospatial data
 
-This study will focus of Osun State, Nigeria. The state boundary GIS data of Nigeria can be downloaded either from The Humanitarian Data Exchange portal or geoBoundaries.
+This study will focus of Osun State, Nigeria. The state boundary GIS data of Nigeria can be downloaded from [geoBoundaries](https://www.geoboundaries.org/).
 
 #### Reading geospatial data
 
 Within the geoboundaries data, we choose to use ADM2 data given that we want to investigate the distribution of water pumps within the LGAs in Osun.
 
 ```{r}
-geoNGA2 <- st_read("data/geospatial/", layer = "geoBoundaries-NGA-ADM2") |>  
-st_transform(crs = 26392) |> 
-  arrange(shapeName)
+geoNGA2 <- st_read(dsn = "data/geospatial", layer = "nga_admbnda_adm2_osgof_20190417") |>  st_transform(crs = 26392) |> 
+  arrange(ADM2_EN)
 
 #check for duplicates
-geoNGA2$shapeName[duplicated(geoNGA2$shapeName) == TRUE]
+geoNGA2$ADM2_EN[duplicated(geoNGA2$ADM2_EN) == TRUE]
 
-duplicated_LGA <- geoNGA2$shapeName[duplicated(geoNGA2$shapeName) == TRUE]
+duplicated_LGA <- geoNGA2$ADM2_EN[duplicated(geoNGA2$ADM2_EN) == TRUE]
 # Get all the indices with names that are included in the duplicated LGA names
-duplicated_indices <- which(geoNGA2$shapeName %in% duplicated_LGA)
+duplicated_indices <- which(geoNGA2$ADM2_EN %in% duplicated_LGA)
 
-geoNGA2$shapeName[94] <- "Bassa, Kogi"
-geoNGA2$shapeName[95] <- "Bassa, Plateau"
-geoNGA2$shapeName[304] <- "Ifelodun, Kwara"
-geoNGA2$shapeName[305] <- "Ifelodun, Osun"
-geoNGA2$shapeName[355] <- "Irepodun, Kwara"
-geoNGA2$shapeName[356] <- "Irepodun, Osun"
-geoNGA2$shapeName[519] <- "Nasarawa, Kano"
-geoNGA2$shapeName[520] <- "Nasarawa, Nasarawa"
-geoNGA2$shapeName[546] <- "Obi, Benue"
-geoNGA2$shapeName[547] <- "Obi, Nasarawa"
-geoNGA2$shapeName[693] <- "Surulere, Lagos"
-geoNGA2$shapeName[694] <- "Surulere, Oyo"
+geoNGA2$ADM2_EN[94] <- "Bassa, Kogi"
+geoNGA2$ADM2_EN[95] <- "Bassa, Plateau"
+geoNGA2$ADM2_EN[304] <- "Ifelodun, Kwara"
+geoNGA2$ADM2_EN[305] <- "Ifelodun, Osun"
+geoNGA2$ADM2_EN[355] <- "Irepodun, Kwara"
+geoNGA2$ADM2_EN[356] <- "Irepodun, Osun"
+geoNGA2$ADM2_EN[519] <- "Nasarawa, Kano"
+geoNGA2$ADM2_EN[520] <- "Nasarawa, Nasarawa"
+geoNGA2$ADM2_EN[546] <- "Obi, Benue"
+geoNGA2$ADM2_EN[547] <- "Obi, Nasarawa"
+geoNGA2$ADM2_EN[693] <- "Surulere, Lagos"
+geoNGA2$ADM2_EN[694] <- "Surulere, Oyo"
 ```
 
 The code chunk below filters out geoNGA2 into Osun state Local Government Area
@@ -78,14 +77,14 @@ osun_LGA <- c("Aiyedade","Aiyedire","Atakumosa East",	"Atakumosa West",
               "Olorunda",	"Oriade",	"Orolu",	"Osogbo", "Boripe", "Boluwaduro")
 
 bd <- geoNGA2 |> 
-  filter(shapeName %in% osun_LGA)
+  filter(ADM2_EN %in% osun_LGA) #create border sf that filters out Osun LGAs
 
-qtm(bd)
+qtm(bd) #checking if the border data is correctly filtered
 ```
 
 ### Aspatial data
 
-For the purpose of this assignment, data from WPdx Global Data Repositories will be used.
+For the purpose of this assignment, data from [WPdx Global Data Repositories](https://data.waterpointdata.org/dataset/Water-Point-Data-Exchange-Plus-WPdx-/eqje-vguj/data) will be used.
 
 #### Reading aspatial data
 
@@ -273,36 +272,18 @@ With our data cleaned and in thr right format, we can move on to compute the Ker
 ### Computing kernel density Estimation using automatic bandwidth selection method
 
 ```{r}
-funckde<- density(funcppp1.km,
+funckde_auto<- density(funcppp1.km,
                   sigma=bw.diggle,
                   edge=TRUE,
                   kernel="gaussian")
 
-plot(funckde)
-
-nonfunckde<- density(nonfuncppp1.km,
+nonfunckde_auto<- density(nonfuncppp1.km,
                   sigma=bw.diggle,
                   edge=TRUE,
                   kernel="gaussian")
-
-plot(nonfunckde)
-```
-
-Attempting to use Kernel Density Estimation by defining bandwidth manually
-
-```{r}
-funckde_manual <- density(funcppp1.km, sigma=0.3, edge=TRUE, kernel="gaussian")
-plot(funckde_manual)
-```
-
-```{r}
-funcppp1.km.bw <- density(funcppp1.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
-plot(funcppp1.km.bw)
-
-nonfuncppp1.km<-rescale(nonfuncppp1, 1000, "km")
-
-nonfuncppp1.km.bw <- density(nonfuncppp1.km, sigma=bw.diggle, edge=TRUE, kernel="gaussian")
-plot(nonfuncppp1.km.bw)
+par(mfrow=c(1,2))
+plot(funckde_auto, main="Functional Waterpoint KDE using Automatic Bandwidth")
+plot(nonfunckde_auto, main="Non-Functional Waterpoint KDE using Automatic Bandwidth")
 ```
 
 ### Convert KDE into grid object
@@ -310,9 +291,9 @@ plot(nonfuncppp1.km.bw)
 Converting KDE into a gridded object that is suitable for mapping purposes.
 
 ```{r}
-gridded_kde_funckde <- as.SpatialGridDataFrame.im(funcppp1.km.bw)
+gridded_kde_funckde <- as.SpatialGridDataFrame.im(funckde_auto)
 
-gridded_kde_nonfunckde <- as.SpatialGridDataFrame.im(nonfuncppp1.km.bw)
+gridded_kde_nonfunckde <- as.SpatialGridDataFrame.im(nonfunckde_auto)
 ```
 
 ### Convert gridded output into raster
@@ -351,14 +332,26 @@ Finally, we will display the raster in cartographic quality map using tmap packa
 
 ```{r}
 tmap_mode("view")
-tm_basemap(server ="OpenStreetMap")+ ### Need to set intervals
+tm_basemap(server ="OpenStreetMap")+ 
 tm_shape(funckde_raster) + 
-  tm_raster("v")
+  tm_raster("v") +
+  tm_layout(main.title = "Raster Plot of Functional Waterpoint KDE",
+            main.title.position = "center",
+            main.title.size = 1.2,
+            legend.height = 0.45, 
+            legend.width = 0.35,
+            frame = TRUE)
 
 tmap_mode("view")
-tm_basemap(server ="OpenStreetMap")+ ### Need to set intervals
+tm_basemap(server ="OpenStreetMap")+ 
 tm_shape(nonfunckde_raster) + 
-  tm_raster("v")
+  tm_raster("v") +
+  tm_layout(main.title = "Raster Plot of Non-Functional Waterpoint KDE",
+            main.title.position = "center",
+            main.title.size = 1.2,
+            legend.height = 0.45, 
+            legend.width = 0.35,
+            frame = TRUE)
 ```
 
 Change tmap mode to plot.
@@ -381,41 +374,62 @@ We will set a 95% confidence interval for the purpose of this study.
 
 ### Analysing Spatial Point Process Using K-Function
 
-1.  Computing F-function estimate
+1.  Computing K-function estimate In our analysis, we choose to use the K function illustrates how the spatial clustering or dispersion of feature centroid changes when the neighborhood size changes.
+
+[Referencing this website](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-multi-distance-spatial-cluster-analysis-ripl.htm#:~:text=Ripley's%20K%2Dfunction%20illustrates%20how,distance%20and%2For%20distance%20increment.), when the observed K value is larger than the expected K value for a particular distance, the distribution is more clustered than a random distribution at that distance. When the observed K value is smaller than the expected K value, the distribution is more dispersed than a random distribution at that distance.
 
 ```{r}
-F_Fun = Fest(funcppp1)
-plot(F_Fun)
+K_Fun <- Kest(funcppp, correction = "Ripley")
+
+K_NonFun <- Kest(nonfuncppp, correction = "Ripley")
+
+par(mfrow=c(1,2))
+plot(K_Fun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
+plot(K_NonFun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
 ```
 
 2.  Generating Monte Carlo test with K-Function
 
 ```{r}
-F_Fun.csr <- envelope(funcppp1, Fest, nsim = 49, rank = 1, glocal = TRUE)
+K_Fun.csr <- envelope(funcppp, Kest, nsim = 39, rank = 1, glocal = TRUE)
+
+K_NonFun.csr <- envelope(nonfuncppp, Kest, nsim = 39, rank = 1, glocal = TRUE)
 ```
 
 3.  plot
 
+To interpret the K function simulation results, we plot out the simulations as a confidence interval, looking at the observed spatial pattern, expected spatial pattern and confidence interval.
+
 ```{r}
-plot(F_Fun.csr)
-summary(F_Fun.csr)
+summary(K_Fun.csr)
+summary(K_NonFun.csr)
+
+par(mfrow=c(1,2))
+plot(K_Fun.csr, main="Functional Waterpoint K Simulations")
+plot(K_NonFun.csr, main="Non-functional Waterpoint K Simulations")
 ```
 
+From the graph above, we see that the observed line falls above that of the confidence interval for both functional and non-functional waterpoints. We reject the null hypothesis at the 95% level of significance that the distribution of functional and non functional waterpoints are randomly distributed. From the information gathered earlier, we see that given the observed K values are higher than expected, it is likely that the functional water points are clustered around each other. A similar conclusion can be drawn for non-functional waterpoints.
+
 ### Performing Clark-Evans test
+
+[Referencing this website,](https://rdrr.io/cran/spatstat.core/man/clarkevans.html) we want to use the Clark-Evans test to reinforce our conclusions. The Clark and Evans (1954) aggregation index *R* is a crude measure of clustering or ordering of a point pattern. It is the ratio of the observed mean nearest neighbour distance in the pattern to that expected for a Poisson point process of the same intensity. A value *R\>1* suggests ordering, while *R\<1* suggests clustering.
 
 ```{r}
 clarkevans.test(funcppp1,
                 correction="none",
                 clipregion="NGA_owin",
                 alternative=c("two.sided"),
-                nsim=49)
+                nsim=39)
 ```
 
 ### Interpretation of the Clark-Evans test
 
-Based on the clark evans test with 99 simulations, we are able to reject the null hypothesis at a 95% confidence level with a p-value of 0.02. Additionally, with an index of 0.33359 which is less than 1, there is indication of clustering.
+Based on the Clark Evans test with 39 simulations, we find that the index R value is 0.44265, which is less than 1, indicating evidence of clustering. However, as the p-value is 0.05, we are unable to reject the null hypothesis.
 
 ### Statistical conclusion
+
+To conclude, there is evidence of clustering of the functional and non-functional water points using the K-function and the Clark and Evans test. However, the evidence could be weak. A more definitive answer could be obtained if we had tried to use more simulations in the test.
 
 # Spatial Correlation Analysis
 
@@ -476,6 +490,12 @@ tm_shape(bd)+
 
 ## Local Colocation coefficient
 
+[According to this website](https://pro.arcgis.com/en/pro-app/2.9/tool-reference/spatial-statistics/learnmorecolocationanalysis.htm), the colocation analysis tool measures local patterns of spatial association between two categories of point features using the colocation quotient statistic.
+
+Each feature in the **Category of Interest** (category A) is evaluated individually for colocation with the presence of the **Neighboring Category** (category B) found within its neighborhood. In general, if the proportion of B points within the neighborhood of A is more than the global proportion of B, the colocation quotient will be high. If the neighborhood of A contains many other A points or many other categories other than B, the colocation between the **Category of Interest** (category A) and the **Neighboring Category** (category B) will be small.
+
+In our analysis, our category of interest (A) is functional waterpoints, and neighboring category (B) is non-functional waterpoints.
+
 ### Preparing the vector list
 
 ```{r}
@@ -514,7 +534,7 @@ wt<-st_kernel_weights(nb,
 In the code chunk below local_colocation() us used to compute the LCLQ values for each Water point event.
 
 ```{r}
-LCLQ<-local_colocation(A, B, nb, wt, 49)
+LCLQ<-local_colocation(A, B, nb, wt, 39)
 ```
 
 ### Joining output Table
@@ -522,7 +542,8 @@ LCLQ<-local_colocation(A, B, nb, wt, 49)
 Before we can plot the LCLQ values their p-values, we need to join the output of local_colocation() to the stores sf data.frame. However, a quick check of LCLQ data-frame, we can't find any field can be used as the join field. As a result, cbind() of Base R is useed.
 
 ```{r}
-LCLQ_WP<-cbind(df,LCLQ)
+LCLQ_WP<-cbind(df,LCLQ) |> 
+  na.exclude()
 ```
 
 ### Plotting LCLQ values
@@ -536,10 +557,23 @@ tm_shape(bd) +
   tm_polygons() + 
 tm_shape(LCLQ_WP) +
   tm_dots(col="Non.functional")+
+  tm_view(set.zoom.limits = c(9,13))+
+tm_shape(LCLQ_WP) +
+  tm_dots(col="p_sim_Non.functional")+
   tm_view(set.zoom.limits = c(9,13))
 ```
 
-Set map to "plot"
+```{r}
+head(LCLQ_WP, 5)
+```
+
+### Statistical conclusion
+
+From the statistical table, we see that the colocation coefficient is less than 1 but extremely close to one for some points.
+
+[From this website](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/learnmorecolocationanalysis.htm), features that have colocation quotients less than one are less likely to have category B within their neighborhood. If a feature has a colocation quotient equal to one, it means the proportion of categories within their neighborhood is a good representation of the proportion of categories throughout the entire study area.
+
+Therefore, it is likely that there is some correlation between location of functional and non functional water points. Additionally given that the p-value is less than 0.05 for the selected points, we can say that the result is statistically significant, and that Functional and non-functional water points are dependent with each other.
 
 ```{r}
 tmap_mode("plot")
@@ -547,7 +581,7 @@ tmap_mode("plot")
 
 ## Performing appropriate tests using second order spatial point pattern analysis technique
 
-For the purposes of Spatial Point Analysis, we are attempting to determine a pattern in terms of either clustering or standardization of point spread. However, in order to do so, we must first reject the null hypothesis that they are randomly distributed to arrive at any conclusion. Thus:
+To reinforce our analysis, we can use the second order spatial point pattern analysis to conclude the nature of dependence between functional and non-functional waterpoints--whether they are evenly distributed or clustered if the distribution of points is not random. Our hypothesis are stated below
 
 The test hypotheses are:
 
@@ -570,26 +604,30 @@ LCLQ_WP_ppp<-as(LCLQ_WP_sp, "ppp")
 any(duplicated(LCLQ_WP_ppp))
 ```
 
-### Using G function to check for distribution trend
+### Using K function to check for distribution trend
+
+We use the K function to analyse the trend of distribution, as done so in the earlier section.
 
 ```{r}
-G_colocation<-Gest(LCLQ_WP_ppp, correction="border")
-plot(G_colocation, xlim=c(0,500))
+K_colocation <- Kest(funcppp, correction = "Ripley")
+plot(K_colocation, xlim=c(0,500))
 ```
 
-### Conduct Monte Carlo simulations for the G estimates
+### Conduct Monte Carlo simulations for the K estimates
 
 ```{r}
-G_CK.csr <- envelope(LCLQ_WP_ppp, Gest, nsim = 49)
+K_CK.csr <- envelope(LCLQ_WP_ppp, Kest, nsim = 39)
 ```
 
 ### Plotting our simulated points into a graph
 
 ```{r}
-plot(G_CK.csr)
+plot(K_CK.csr)
 ```
 
 ### Statistical conclusions
+
+From the graph, we see that there is evidence of clustering of the non-functional waterpoints about the functional waterpoints.
 
 # Self-sourced: Comparing population and waterpoint functionality
 
@@ -597,7 +635,9 @@ In this section we aim to come up with useful conclusions regarding the waterpoi
 
 ## Importing data
 
-In researching for population data for Osun state, we chose to use projected population numbers from this website.
+In researching for population data for Osun state, we chose to use population density from [this website](http://www.geo-ref.net/ph/nga.htm).
+
+We save the webpage as a html file, and open it using microsoft excel, to generate the table in xls format. Subsequently, we save the excel file into csv format for analysis in R. The file will be saved with the name "pop_data_nga.csv".
 
 ```{r}
 pop_data<-read.csv("data/pop_data_nga.csv")
@@ -616,34 +656,12 @@ To plot the population data, we use ADM2 data which defines the specific geoboun
 ```{r}
 #Joining data from both data frames, preserving sf  properties
 geoNGA2_osun<-bd |> 
-  left_join(osun_pop, by="shapeName")
+  left_join(osun_pop, by=c("ADM2_EN"="shapeName"))
 ```
 
 ## Plotting waterpoint data and population data
 
 With our data ready, we can plot the projected population using tmap functions.
-
-```{r}
-tm_shape(geoNGA2_osun)+
-  tm_fill("Density",
-          style = "quantile", 
-          palette = "-Blues",
-          title = "Population Density of Osun LGAs")+
-  tm_layout(main.title = "Population Density of Osun LGAs",
-            main.title.position = "center",
-            main.title.size = 1.2,
-            legend.height = 0.45, 
-            legend.width = 0.35,
-            frame = TRUE) +
-  tm_borders(alpha = 0.5) +
-  tm_scale_bar() +
-  tm_grid(alpha =0.2) +
-  tm_shape(df)+
-  tm_dots(col="status_redefined",
-          size=0.01,
-          border.col="black",
-           border.lwd=0.5)
-```
 
 ```{r}
 tm_shape(geoNGA2_osun)+
@@ -683,4 +701,4 @@ tmap_mode("plot")
 
 ## Conclusions
 
-From the plot, we see that high population density areas such as Ife Central, Ede North, Boripe, Ilesha West and Orolu have high coincidence of non-functional waterpoints.
+From the plot, we see that high population density areas such as Ife Central, Ede North, Boripe, Ilesha West and Orolu have high coincidence of non-functional waterpoints. This could possibly imply the overuse of waterpoints by the larger population. More importantly, this finding can be used by government agencies who are pioritising repair schedules for the non-functional waterpoints.
