@@ -25,4 +25,100 @@ For the purpose of this in class exercise, the Hunan data sets will be used. The
 
 -   Hunan_2012, an **attribute** dataset in csv format
 
-### Importing geospatial data
+### Importing geospatial data: shapefile into R environment
+
+The code chunk below uses [*st_read()*](https://r-spatial.github.io/sf/reference/st_read.html) of **sf** package to import Hunan shapefile into R. The imported shapefile will be **simple features** Object of **sf**.
+
+```{r}
+hunan <- st_read(dsn = "data/geospatial", 
+                 layer = "Hunan")
+```
+
+### Import csv file into r environment
+
+Next, we will import *Hunan_2012.csv* into R by using *read_csv()* of **readr** package. The output is R dataframe class. Readr will be loaded as part of tidyverse.
+
+```{r}
+hunan2012 <- read_csv("data/aspatial/Hunan_2012.csv")
+```
+
+### Combining both data frames using left join
+
+We want the output in an sf dataframe hence, the left dataframe should be hunan, which has a sf format. We need to find a unique identifier, in this case it is by="County", where both data frames have a common field.
+
+```{r}
+hunan_GDPPC<-hunan |> 
+  left_join(hunan2012, by="County") |> 
+  select(1:4, 7, 15) #selecting only the GDPPC column
+```
+
+### Plotting in a chloropleth map
+
+```{r}
+tmap_mode("plot")
+tm_shape(hunan_GDPPC) +
+  tm_fill("GDPPC",
+          style="quantile",
+          palette="Blues",
+          totle="GDPPC")+
+  tm_borders(alpha = 0.5) +
+  tm_layout(main.title= "Distribution of GDP per capita by district", 
+            main.title.position="center",
+            main.title.size=1.2,
+            legend.height=0.45,
+            legend.width = 0.35,
+            frame=TRUE)+
+    tm_compass(type="8star", size=2)+
+    tm_scale_bar()+
+    tm_grid(alpha=0.2)
+```
+
+## Contiguity neighbours method
+
+In the code chunk below st_contiguity() is used to derive a contiguity neighbour list by using Queen's method
+
+```{r}
+cn_queen<-hunan_GDPPC |> 
+  mutate(nb = st_contiguity(geometry), #creating nearest neighbour list
+         .before=1) #put newly created field as the first column
+```
+
+This is just the sf version of spdep::poly2nb
+
+using the rooks method in the code chunk below
+
+```{r}
+cn_rook<-hunan_GDPPC |> 
+  mutate(nb = st_contiguity(geometry), #creating nearest neighbour list
+         queen=FALSE,
+         .before=1) #put newly created field as the first column
+```
+
+Next, we want to Convert neighbour list to distance list
+
+## Computing contiguity weights
+
+### Contiguity weights: Queen's method
+
+```{r}
+wm_q <- hunan_GDPPC |> 
+  mutate(nb = st_contiguity(geometry),
+         wt = st_weights(nb),
+         .before = 1)
+```
+
+Different from spdep, sfdep can just condense the calculation of contiguity weights into 1 line. Ie we dont have to code the previous chunk under contiguity method.
+
+wt is a standardised weight matrics that is calculated based on 1/no of neighbours in nb list for each observation.
+
+```{r}
+wm_r <- hunan_GDPPC |> 
+  mutate(nb = st_contiguity(geometry),
+         queen = FALSE,
+         wt = st_weights(nb),
+         .before = 1)
+```
+
+fixed distance bandwidth: calculating spatial weights based on distance criteria
+
+-   use code st_dist_band(), which is the sf version of dnearneigh() in spdep

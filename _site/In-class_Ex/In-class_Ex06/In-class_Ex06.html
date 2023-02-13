@@ -228,7 +228,15 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <li><a href="#installing-and-loading-the-r-packages" id="toc-installing-and-loading-the-r-packages" class="nav-link active" data-scroll-target="#installing-and-loading-the-r-packages"><span class="toc-section-number">1</span>  Installing and loading the R packages</a></li>
   <li><a href="#the-data" id="toc-the-data" class="nav-link" data-scroll-target="#the-data"><span class="toc-section-number">2</span>  The data</a>
   <ul class="collapse">
-  <li><a href="#importing-geospatial-data" id="toc-importing-geospatial-data" class="nav-link" data-scroll-target="#importing-geospatial-data"><span class="toc-section-number">2.1</span>  Importing geospatial data</a></li>
+  <li><a href="#importing-geospatial-data-shapefile-into-r-environment" id="toc-importing-geospatial-data-shapefile-into-r-environment" class="nav-link" data-scroll-target="#importing-geospatial-data-shapefile-into-r-environment"><span class="toc-section-number">2.1</span>  Importing geospatial data: shapefile into R environment</a></li>
+  <li><a href="#import-csv-file-into-r-environment" id="toc-import-csv-file-into-r-environment" class="nav-link" data-scroll-target="#import-csv-file-into-r-environment"><span class="toc-section-number">2.2</span>  Import csv file into r environment</a></li>
+  <li><a href="#combining-both-data-frames-using-left-join" id="toc-combining-both-data-frames-using-left-join" class="nav-link" data-scroll-target="#combining-both-data-frames-using-left-join"><span class="toc-section-number">2.3</span>  Combining both data frames using left join</a></li>
+  <li><a href="#plotting-in-a-chloropleth-map" id="toc-plotting-in-a-chloropleth-map" class="nav-link" data-scroll-target="#plotting-in-a-chloropleth-map"><span class="toc-section-number">2.4</span>  Plotting in a chloropleth map</a></li>
+  </ul></li>
+  <li><a href="#contiguity-neighbours-method" id="toc-contiguity-neighbours-method" class="nav-link" data-scroll-target="#contiguity-neighbours-method"><span class="toc-section-number">3</span>  Contiguity neighbours method</a></li>
+  <li><a href="#computing-contiguity-weights" id="toc-computing-contiguity-weights" class="nav-link" data-scroll-target="#computing-contiguity-weights"><span class="toc-section-number">4</span>  Computing contiguity weights</a>
+  <ul class="collapse">
+  <li><a href="#contiguity-weights-queens-method" id="toc-contiguity-weights-queens-method" class="nav-link" data-scroll-target="#contiguity-weights-queens-method"><span class="toc-section-number">4.1</span>  Contiguity weights: Queen’s method</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -271,8 +279,106 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li><p>Hunan, a <strong>geospatial</strong> data set in the ESRI shapefile format, and</p></li>
 <li><p>Hunan_2012, an <strong>attribute</strong> dataset in csv format</p></li>
 </ul>
-<section id="importing-geospatial-data" class="level3" data-number="2.1">
-<h3 data-number="2.1" class="anchored" data-anchor-id="importing-geospatial-data"><span class="header-section-number">2.1</span> Importing geospatial data</h3>
+<section id="importing-geospatial-data-shapefile-into-r-environment" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="importing-geospatial-data-shapefile-into-r-environment"><span class="header-section-number">2.1</span> Importing geospatial data: shapefile into R environment</h3>
+<p>The code chunk below uses <a href="https://r-spatial.github.io/sf/reference/st_read.html"><em>st_read()</em></a> of <strong>sf</strong> package to import Hunan shapefile into R. The imported shapefile will be <strong>simple features</strong> Object of <strong>sf</strong>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>hunan <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="at">dsn =</span> <span class="st">"data/geospatial"</span>, </span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">layer =</span> <span class="st">"Hunan"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Reading layer `Hunan' from data source 
+  `/Users/pengyouyun/youyunpeng/IS415/In-class_Ex/In-class_Ex06/data/geospatial' 
+  using driver `ESRI Shapefile'
+Simple feature collection with 88 features and 7 fields
+Geometry type: POLYGON
+Dimension:     XY
+Bounding box:  xmin: 108.7831 ymin: 24.6342 xmax: 114.2544 ymax: 30.12812
+Geodetic CRS:  WGS 84</code></pre>
+</div>
+</div>
+</section>
+<section id="import-csv-file-into-r-environment" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="import-csv-file-into-r-environment"><span class="header-section-number">2.2</span> Import csv file into r environment</h3>
+<p>Next, we will import <em>Hunan_2012.csv</em> into R by using <em>read_csv()</em> of <strong>readr</strong> package. The output is R dataframe class. Readr will be loaded as part of tidyverse.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>hunan2012 <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"data/aspatial/Hunan_2012.csv"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="combining-both-data-frames-using-left-join" class="level3" data-number="2.3">
+<h3 data-number="2.3" class="anchored" data-anchor-id="combining-both-data-frames-using-left-join"><span class="header-section-number">2.3</span> Combining both data frames using left join</h3>
+<p>We want the output in an sf dataframe hence, the left dataframe should be hunan, which has a sf format. We need to find a unique identifier, in this case it is by=“County”, where both data frames have a common field.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>hunan_GDPPC<span class="ot">&lt;-</span>hunan <span class="sc">|&gt;</span> </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(hunan2012, <span class="at">by=</span><span class="st">"County"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="dv">7</span>, <span class="dv">15</span>) <span class="co">#selecting only the GDPPC column</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="plotting-in-a-chloropleth-map" class="level3" data-number="2.4">
+<h3 data-number="2.4" class="anchored" data-anchor-id="plotting-in-a-chloropleth-map"><span class="header-section-number">2.4</span> Plotting in a chloropleth map</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tmap_mode</span>(<span class="st">"plot"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tm_shape</span>(hunan_GDPPC) <span class="sc">+</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tm_fill</span>(<span class="st">"GDPPC"</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>          <span class="at">style=</span><span class="st">"quantile"</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>          <span class="at">palette=</span><span class="st">"Blues"</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>          <span class="at">totle=</span><span class="st">"GDPPC"</span>)<span class="sc">+</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tm_borders</span>(<span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tm_layout</span>(<span class="at">main.title=</span> <span class="st">"Distribution of GDP per capita by district"</span>, </span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">main.title.position=</span><span class="st">"center"</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>            <span class="at">main.title.size=</span><span class="fl">1.2</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>            <span class="at">legend.height=</span><span class="fl">0.45</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>            <span class="at">legend.width =</span> <span class="fl">0.35</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>            <span class="at">frame=</span><span class="cn">TRUE</span>)<span class="sc">+</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tm_compass</span>(<span class="at">type=</span><span class="st">"8star"</span>, <span class="at">size=</span><span class="dv">2</span>)<span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tm_scale_bar</span>()<span class="sc">+</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tm_grid</span>(<span class="at">alpha=</span><span class="fl">0.2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="In-class_Ex06_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+<section id="contiguity-neighbours-method" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="contiguity-neighbours-method"><span class="header-section-number">3</span> Contiguity neighbours method</h2>
+<p>In the code chunk below st_contiguity() is used to derive a contiguity neighbour list by using Queen’s method</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>cn_queen<span class="ot">&lt;-</span>hunan_GDPPC <span class="sc">|&gt;</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">nb =</span> <span class="fu">st_contiguity</span>(geometry), <span class="co">#creating nearest neighbour list</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">.before=</span><span class="dv">1</span>) <span class="co">#put newly created field as the first column</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This is just the sf version of spdep::poly2nb</p>
+<p>using the rooks method in the code chunk below</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>cn_rook<span class="ot">&lt;-</span>hunan_GDPPC <span class="sc">|&gt;</span> </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">nb =</span> <span class="fu">st_contiguity</span>(geometry), <span class="co">#creating nearest neighbour list</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">queen=</span><span class="cn">FALSE</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">.before=</span><span class="dv">1</span>) <span class="co">#put newly created field as the first column</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Next, we want to Convert neighbour list to distance list</p>
+</section>
+<section id="computing-contiguity-weights" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="computing-contiguity-weights"><span class="header-section-number">4</span> Computing contiguity weights</h2>
+<section id="contiguity-weights-queens-method" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="contiguity-weights-queens-method"><span class="header-section-number">4.1</span> Contiguity weights: Queen’s method</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>wm_q <span class="ot">&lt;-</span> hunan_GDPPC <span class="sc">|&gt;</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">nb =</span> <span class="fu">st_contiguity</span>(geometry),</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">wt =</span> <span class="fu">st_weights</span>(nb),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">.before =</span> <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Different from spdep, sfdep can just condense the calculation of contiguity weights into 1 line. Ie we dont have to code the previous chunk under contiguity method.</p>
+<p>wt is a standardised weight matrics that is calculated based on 1/no of neighbours in nb list for each observation.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>wm_r <span class="ot">&lt;-</span> hunan_GDPPC <span class="sc">|&gt;</span> </span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">nb =</span> <span class="fu">st_contiguity</span>(geometry),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">queen =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">wt =</span> <span class="fu">st_weights</span>(nb),</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>         <span class="at">.before =</span> <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>fixed distance bandwidth: calculating spatial weights based on distance criteria</p>
+<ul>
+<li>use code st_dist_band(), which is the sf version of dnearneigh() in spdep</li>
+</ul>
 
 
 </section>
