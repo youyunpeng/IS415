@@ -6,8 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="dcterms.date" content="2023-02-13">
 
-<title>IS415 - In-class_Ex06</title>
+<title>IS415 - In-class Exercise 6: Spatial Weights and Applications</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -224,8 +225,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#installing-and-loading-the-r-packages" id="toc-installing-and-loading-the-r-packages" class="nav-link active" data-scroll-target="#installing-and-loading-the-r-packages">Installing and loading the R packages</a></li>
-  <li><a href="#the-data" id="toc-the-data" class="nav-link" data-scroll-target="#the-data">The data</a></li>
+  <li><a href="#installing-and-loading-the-r-packages" id="toc-installing-and-loading-the-r-packages" class="nav-link active" data-scroll-target="#installing-and-loading-the-r-packages"><span class="toc-section-number">1</span>  Installing and loading the R packages</a></li>
+  <li><a href="#the-data" id="toc-the-data" class="nav-link" data-scroll-target="#the-data"><span class="toc-section-number">2</span>  The data</a>
+  <ul class="collapse">
+  <li><a href="#importing-geospatial-data" id="toc-importing-geospatial-data" class="nav-link" data-scroll-target="#importing-geospatial-data"><span class="toc-section-number">2.1</span>  Importing geospatial data</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -234,7 +238,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">In-class_Ex06</h1>
+<h1 class="title">In-class Exercise 6: Spatial Weights and Applications</h1>
 </div>
 
 
@@ -242,22 +246,36 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="quarto-title-meta">
 
     
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">February 13, 2023</p>
+    </div>
+  </div>
     
   </div>
   
 
 </header>
 
-<section id="installing-and-loading-the-r-packages" class="level2">
-<h2 class="anchored" data-anchor-id="installing-and-loading-the-r-packages">Installing and loading the R packages</h2>
+<section id="installing-and-loading-the-r-packages" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="installing-and-loading-the-r-packages"><span class="header-section-number">1</span> Installing and loading the R packages</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(sf, sfdep, tmap, tidyverse)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="the-data" class="level2">
-<h2 class="anchored" data-anchor-id="the-data">The data</h2>
+<section id="the-data" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="the-data"><span class="header-section-number">2</span> The data</h2>
+<p>For the purpose of this in class exercise, the Hunan data sets will be used. There are two data sets in this use case, they are:</p>
+<ul>
+<li><p>Hunan, a <strong>geospatial</strong> data set in the ESRI shapefile format, and</p></li>
+<li><p>Hunan_2012, an <strong>attribute</strong> dataset in csv format</p></li>
+</ul>
+<section id="importing-geospatial-data" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="importing-geospatial-data"><span class="header-section-number">2.1</span> Importing geospatial data</h3>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

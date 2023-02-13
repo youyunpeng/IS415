@@ -1,5 +1,13 @@
 ---
-title: "In-class_Ex06"
+title: "In-class Exercise 6: Spatial Weights and Applications"
+date: "13 February 2023"
+date-modified: "`r Sys.Date()`"
+number-sections: true
+format: html
+execute: 
+  echo: true
+  eval: true
+  warning: false
 editor: visual
 ---
 
@@ -10,3 +18,11 @@ pacman::p_load(sf, sfdep, tmap, tidyverse)
 ```
 
 ## The data
+
+For the purpose of this in class exercise, the Hunan data sets will be used. There are two data sets in this use case, they are:
+
+-   Hunan, a **geospatial** data set in the ESRI shapefile format, and
+
+-   Hunan_2012, an **attribute** dataset in csv format
+
+### Importing geospatial data
