@@ -275,7 +275,7 @@ In spatial analysis, the choice of bandwidth is important for determining the sm
 
 Fixed bandwidth methods use a constant value for the bandwidth throughout the analysis, regardless of the distribution of the data. This can be useful when the data has a consistent structure, but if the data is highly variable or has multiple modes, a constant bandwidth may not provide an adequate fit to the data.
 
-Adaptive bandwidth methods, on the other hand, use a variable bandwidth that adjusts based on the local structure of the data. This allows for more flexibility in the fitting process. 
+Adaptive bandwidth methods, on the other hand, use a variable bandwidth that adjusts based on the local structure of the data. This allows for more flexibility in the fitting process.
 
 From our initial plots, we can see that there is some evidence of clustering, leading to our choice of using adaptive bandwidth in our analysis.
 
@@ -381,19 +381,21 @@ We will set a 95% confidence interval for the purpose of this study.
 
 [Referencing this website](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-multi-distance-spatial-cluster-analysis-ripl.htm#:~:text=Ripley's%20K%2Dfunction%20illustrates%20how,distance%20and%2For%20distance%20increment.), when the observed K value is larger than the expected K value for a particular distance, the distribution is more clustered than a random distribution at that distance. When the observed K value is smaller than the expected K value, the distribution is more dispersed than a random distribution at that distance.
 
-```{r}
+```{r, eval = FALSE}
 K_Fun <- Kest(funcppp1, correction = "Ripley")
 
 K_NonFun <- Kest(nonfuncppp1, correction = "Ripley")
 
 par(mfrow=c(1,2))
 plot(K_Fun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
-plot(K_NonFun, .-r ~r, ylab="L(d)-r", xlab ="d(m)")
+plot(K_NonFun, .-r ~r, ylab="K(d)-r", xlab ="d(m)")
 ```
+
+![](img/K_function.png)
 
 2.  Generating Monte Carlo test with K-Function
 
-```{r}
+```{r, eval = FALSE}
 K_Fun.csr <- envelope(funcppp1, Kest, nsim = 39, rank = 1, glocal = TRUE)
 
 K_NonFun.csr <- envelope(nonfuncppp1, Kest, nsim = 39, rank = 1, glocal = TRUE)
@@ -403,7 +405,7 @@ K_NonFun.csr <- envelope(nonfuncppp1, Kest, nsim = 39, rank = 1, glocal = TRUE)
 
 To interpret the K function simulation results, we plot out the simulations as a confidence interval, looking at the observed spatial pattern, expected spatial pattern and confidence interval.
 
-```{r}
+```{r, eval = FALSE}
 summary(K_Fun.csr)
 summary(K_NonFun.csr)
 
@@ -411,6 +413,8 @@ par(mfrow=c(1,2))
 plot(K_Fun.csr, main="Functional Waterpoint K Simulations")
 plot(K_NonFun.csr, main="Non-functional Waterpoint K Simulations")
 ```
+
+![](img/K_simulation.png)
 
 From the graph above, we see that the observed line falls above that of the confidence interval for both functional and non-functional waterpoints. We reject the null hypothesis at the 95% level of significance that the distribution of functional and non functional waterpoints are randomly distributed. From the information gathered earlier, we see that given the observed K values are higher than expected, it is likely that the functional water points are clustered around each other. A similar conclusion can be drawn for non-functional waterpoints.
 
@@ -592,7 +596,9 @@ The test hypotheses are:
 We will set a 95% confidence interval for the purpose of this study.
 
 ### Conversion of LCLQ data into ppp
-In this analysis, we seek to perform marked point pattern analysis, based on the associated categorical measurement "status_redefined" in the waterpoint data. 
+
+In this analysis, we seek to perform marked point pattern analysis, based on the associated categorical measurement "status_redefined" in the waterpoint data.
+
 ```{r}
 df_spatialpoint<-df |>
   as("Spatial") |> 
@@ -622,6 +628,7 @@ Lcross.csr <- envelope(df_ppp_owin,
 ```
 
 We can then plot our result
+
 ```{r}
 plot(Lcross.csr, 
      xlim = c(0,10000))

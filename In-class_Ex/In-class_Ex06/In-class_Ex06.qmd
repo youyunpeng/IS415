@@ -1,0 +1,12 @@
+---
+title: "In-class_Ex06"
+editor: visual
+---
+
+## Installing and loading the R packages
+
+```{r}
+pacman::p_load(sf, sfdep, tmap, tidyverse)
+```
+
+## The data
