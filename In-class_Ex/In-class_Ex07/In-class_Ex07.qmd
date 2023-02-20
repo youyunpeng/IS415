@@ -227,3 +227,28 @@ cbg<-gi_stars |>
   select(County, Year, gi_star)
 ```
 
+ggplot
+```{r}
+ggplot(data = cbg,
+       aes(x = Year,
+           y = gi_star)) + 
+  geom_line() + 
+  theme_light()
+```
+
+```{r}
+pacman::p_load(Kendall)
+ehsa <- emerging_hotspot_analysis(
+  x = GDPPC_st,
+  .var = "GDPPC",
+  k = 1,
+  nsim = 99
+)
+```
+
+```{r}
+ggplot(data = ehsa,
+       aes(x=classification)) + 
+  geom_bar()
+```
+
