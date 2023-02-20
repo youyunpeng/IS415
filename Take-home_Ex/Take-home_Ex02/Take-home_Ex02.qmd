@@ -18,7 +18,7 @@ Exploratory Spatial Data Analysis (ESDA) hold tremendous potential to address co
 ## Installing Packages
 
 ```{r}
-pacman::p_load(sf, spdep, tmap, tidyverse, knitr, kableExtra)
+pacman::p_load(sf, sfdep, tmap, tidyverse, knitr, kableExtra)
 ```
 
 ## Load data
@@ -343,3 +343,77 @@ server <- function(input, output) {
 shinyApp(ui, server)
 
 ```
+
+## Local Gi Analysis
+
+Filter
+
+```{r}
+filtered<-combined_df |> 
+  filter(date=="July 2021")
+```
+
+### Computing contiguity weights: Queen's method
+
+Different from spdep, sfdep can just condense the calculation of contiguity weights into 1 line. Ie we dont have to code the previous chunk under contiguity method.
+
+```{r}
+wm_q <- filtered |> 
+  mutate(nb = st_contiguity(geometry),
+         wt = st_weights(nb,
+                         style = "W"),
+         .before = 1)
+```
+
+### Deriving fixed distance weights
+
+```{r}
+geo <- sf::st_geometry(filtered)
+nb <- st_knn(geo, longlat = TRUE)
+dists <- unlist(st_nb_dists(geo, nb))
+```
+
+```{r}
+sum_dists<-summary(dists)
+```
+
+### Computing fixed distance weights
+
+```{r}
+wm_fd <- filtered %>%
+  mutate(nb = st_dist_band(geometry,
+                           upper = 3600
+                             ),
+               wt = st_weights(nb),
+               .before = 1)
+```
+
+### Creating a function
+
+```{r}
+
+```
+
+### Local Spatial Autocorrelation
+
+### Computing local moran's I
+
+```{r}
+filtered
+fips <- order(wm_fd$village_code)
+localMI <- local_moran(wm_fd$vaccination_rate,
+                       wm_fd$nb, 
+                       wm_fd$wt)
+head(localMI)
+```
+
+### Printing results in a list
+
+```{r}
+printCoefmat(data.frame(
+  localMI[fips,], 
+  row.names=combined_df$village_code[fips]),
+  check.names=FALSE)
+```
+
+### Mapping the local Moran's I

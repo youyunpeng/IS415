@@ -126,7 +126,15 @@ moran.test(hunan$GDPPC,
            na.action=na.omit)
 ```
 
-Conclusion: p value smaller than 0.05, reject null hypothesis
+| Significance and z-value                                                 | Explanation                                                                                                                                                                                                                                                                                                                                                                                                                              |
+|-----------------|-------------------------------------------------------|
+| The p-value is *not* statistically significant.                          | You cannot reject the null hypothesis. It is quite possible that the spatial distribution of feature values is the result of random spatial processes. The observed spatial pattern of feature values could very well be one of many, many possible versions of complete spatial randomness (CSR).                                                                                                                                       |
+| The p-value *is* statistically significant, and the z-score is positive. | You may reject the null hypothesis. The spatial distribution of high values and/or low values in the dataset is more spatially clustered than would be expected if underlying spatial processes were random.                                                                                                                                                                                                                             |
+| The p-value *is* statistically significant, and the z-score is negative. | You may reject the null hypothesis. The spatial distribution of high values and low values in the dataset is more spatially dispersed than would be expected if underlying spatial processes were random. A dispersed spatial pattern often reflects some type of competitive process---a feature with a high value repels other features with high values; similarly, a feature with a low value repels other features with low values. |
+
+: Understanding how to read the Moran's Test statistic
+
+Credits: [pro.arcgis.com](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-spatial-autocorrelation-moran-s-i-spatial-st.htm#:~:text=the%20null%20hypothesis.-,Interpretation,context%20of%20its%20null%20hypothesis.)
 
 ### Computing Monte Carlo Moran's I
 
@@ -561,7 +569,7 @@ gi.fixed <- localG(hunan$GDPPC, wm62_lw)
 gi.fixed
 ```
 
-The output of localG() is a vector of G or Gstar values, with attributes \"gstari\" set to TRUE or FALSE, \"call\" set to the function call, and class \"localG\".
+The output of localG() is a vector of G or Gstar values, with attributes "gstari" set to TRUE or FALSE, "call" set to the function call, and class "localG".
 
 The Gi statistics is represented as a Z-score. Greater values represent a greater intensity of clustering and the direction (positive or negative) indicates high or low clusters.
 

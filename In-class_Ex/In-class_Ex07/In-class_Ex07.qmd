@@ -1,5 +1,5 @@
 ---
-title: "In-class Exercise 7:"
+title: "In-class Exercise 7: Emerging hot spot analysis and Global measures of spatial association"
 date: "20 February 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
@@ -10,3 +10,220 @@ execute:
   warning: false
 editor: visual
 ---
+
+## Installing packages
+
+```{r}
+pacman::p_load(sf, sfdep, tmap, tidyverse)
+```
+
+## The data
+
+For the purpose of this in class exercise, the Hunan data sets will be used. There are two data sets in this use case, they are:
+
+-   Hunan, a **geospatial** data set in the ESRI shapefile format, and
+
+-   Hunan_2012, an **attribute** dataset in csv format
+
+### Importing geospatial data: shapefile into R environment
+
+The code chunk below uses [*st_read()*](https://r-spatial.github.io/sf/reference/st_read.html) of **sf** package to import Hunan shapefile into R. The imported shapefile will be **simple features** Object of **sf**.
+
+```{r}
+hunan <- st_read(dsn = "data/geospatial", 
+                 layer = "Hunan")
+```
+
+### Import csv file into r environment
+
+Next, we will import *Hunan_2012.csv* into R by using *read_csv()* of **readr** package. The output is R dataframe class. Readr will be loaded as part of tidyverse.
+
+```{r}
+hunan2012 <- read_csv("data/aspatial/Hunan_2012.csv")
+```
+
+### Combining both data frames using left join
+
+We want the output in an sf dataframe hence, the left dataframe should be hunan, which has a sf format. We need to find a unique identifier, in this case it is by="County", where both data frames have a common field.
+
+```{r}
+hunan_GDPPC<-hunan |> 
+  left_join(hunan2012, by="County") |> 
+  select(1:4, 7, 15) #selecting only the GDPPC column
+```
+
+### Plotting in a chloropleth map
+
+```{r}
+tmap_mode("plot")
+tm_shape(hunan_GDPPC) +
+  tm_fill("GDPPC",
+          style="quantile",
+          palette="Blues",
+          totle="GDPPC")+
+  tm_borders(alpha = 0.5) +
+  tm_layout(main.title= "Distribution of GDP per capita by district", 
+            main.title.position="center",
+            main.title.size=1.2,
+            legend.height=0.45,
+            legend.width = 0.35,
+            frame=TRUE)+
+    tm_compass(type="8star", size=2)+
+    tm_scale_bar()+
+    tm_grid(alpha=0.2)
+```
+
+# Part 2 of take home
+### Deriving contiguity weights: Queen's method
+```{r}
+wm_q <- hunan_GDPPC |> 
+  mutate(nb = st_contiguity(geometry),
+         wt = st_weights(nb, style="W"), #input neighbour list, method, using "W" roe standardised
+         .before = 1)
+```
+
+### Computing Global Moran I
+```{r}
+moranI<- global_moran(wm_q$GDPPC,
+                      wm_q$nb,
+                      wm_q$wt)
+```
+
+### Performing Global Moran I test
+```{r}
+sfdep::global_moran_test(wm_q$GDPPC,
+                      wm_q$nb,
+                      wm_q$wt)
+```
+
+Moran I value greater than 1, evidence of clustering
+
+### Performing global moran's I permutation test
+
+Do a set.seed if we are doing simulations
+```{r}
+set.seed(1234)
+```
+
+
+```{r}
+global_moran_perm(wm_q$GDPPC,
+                      wm_q$nb,
+                      wm_q$wt,
+                  nsim = 99)
+```
+different from the previous code chunk, this result uses multiple simulations. Notice that moran I's statistic is simular
+
+
+### Computing local Moran's I
+```{r}
+lisa<-wm_q |> 
+  mutate(local_moran=local_moran(
+    GDPPC, nb, wt, nsim=99),
+    .before=1) |> 
+      unnest(local_moran)
+
+lisa
+```
+
+Tmap
+```{r}
+tmap_mode("plot")
+tm_shape(lisa) +
+  tm_fill("ii")+
+  tm_borders(alpha=0.5)+
+  tm_view(set.zoom.limits = c(6,8))
+```
+
+P-value map
+```{r}
+tmap_mode("plot")
+tm_shape(lisa)+
+  tm_fill("p_ii_sim")+
+  tm_borders(alpha=0.5)
+```
+Visualising local Moran's I
+
+```{r}
+lisa_sig <- lisa |> 
+  filter(p_ii<0.05)
+tmap_mode("plot")
+tm_shape(lisa)+
+  tm_polygons()+
+  tm_borders(alpha=0.5)+
+tm_shape(lisa_sig)+
+  tm_fill("mean")+
+  tm_borders(alpha=0.5)
+```
+
+### Computing local moran I
+generate local Gi*
+```{r}
+HCSA<- wm_q |> 
+  mutate(local_Gi=local_gstar_perm(
+    GDPPC, nb, wt, nsim=99),
+    .before=1) |> 
+  unnest(local_Gi)
+
+HCSA
+```
+
+### Visualising Gi*
+```{r}
+tmap_mode("plot")
+tm_shape(HCSA)+
+  tm_fill("gi_star") +
+  tm_borders(alpha=0.5) + 
+  tm_view(set.zoom.limits = c(6,8))
+```
+positive=hotspot, negative=cold spot
+
+### Visualising p value of HCSA
+```{r}
+tmap_mode("plot")
+tm_shape(HCSA)+
+  tm_fill("p_sim")+
+  tm_borders(alpha=0.5)
+```
+
+# Part 3 of take home
+### Aspatial data
+```{r}
+GDPPC <- read_csv("data/aspatial/Hunan_GDPPC.csv")
+```
+### Creating a time series cube
+```{r}
+GDPPC_st<- spacetime(GDPPC, hunan,
+                     .loc_col = "County",
+                     .time_col = "Year")
+```
+
+```{r}
+GDPPC_nb<-GDPPC_st |> 
+  activate("geometry") |> 
+  mutate(
+    nb=include_self(st_contiguity(geometry)),
+    wt=st_weights(nb)
+  ) |> 
+  set_nbs("nb") |> 
+  set_wts("wt")
+```
+
+### Computing Gi*
+
+```{r}
+gi_stars<-GDPPC_nb |> 
+  group_by(Year) |> 
+  mutate(gi_star = local_gstar_perm(
+    GDPPC, nb, wt, nsim=99)) |> 
+  tidyr::unnest(gi_star)
+gi_stars
+```
+### Man-Kandall Test
+```{r}
+cbg<-gi_stars |> 
+  ungroup() |> 
+  filter(County=="Changsha") |> 
+  select(County, Year, gi_star)
+```
+
