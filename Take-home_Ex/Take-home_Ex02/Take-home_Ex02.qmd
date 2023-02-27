@@ -3,7 +3,9 @@ title: "Take-home Exercise 2"
 date: "19 February 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
-format: html
+format: 
+  html:
+    code-fold: true
 execute: 
   echo: true
   eval: true
@@ -11,7 +13,7 @@ execute:
 editor: visual
 ---
 
-## Objectives
+# Objectives
 
 Exploratory Spatial Data Analysis (ESDA) hold tremendous potential to address complex problems facing society. In this study, you are tasked to apply appropriate Local Indicators of Spatial Association (LISA) and Emerging Hot Spot Analysis (EHSA) to undercover the spatio-temporal trends of COVID-19 vaccination in DKI Jakarta.
 
@@ -20,6 +22,8 @@ Exploratory Spatial Data Analysis (ESDA) hold tremendous potential to address co
 ```{r}
 pacman::p_load(sf, sfdep, tmap, tidyverse, knitr, kableExtra)
 ```
+
+# Data Wrangling
 
 ## Load data
 
@@ -69,12 +73,7 @@ From the output message, we learn that:
 
 We need to check for invalid geometries and missing values in our geospatial data.
 
-```{r}
-length(which(st_is_valid(geoJAR) == FALSE))
-geoJAR[rowSums(is.na(geoJAR))!=0,]
-
-geoJAR<- na.exclude(geoJAR)
-```
+length(which(st_is_valid(geoJAR) == FALSE)) geoJAR\[rowSums(is.na(geoJAR))!=0,\]
 
 #### Checking CRS
 
@@ -82,13 +81,25 @@ geoJAR<- na.exclude(geoJAR)
 st_crs(geoJAR)
 ```
 
-The assigned coordinate system if WGS 84, which is not appropriate as this is an Indonesia-specific geospatial dataset. It should be using the national CRS of indonesia, GDN95, with EPSG code 23845.
+The assigned coordinate system is WGS 84, which is not appropriate as this is an Indonesia-specific geospatial dataset. It should be using the national CRS of indonesia, GDN95, with EPSG code 23845.
 
 ```{r}
 # transforms the CRS to DGN95, ESPG code 23845
 geoJAR <- st_transform(geoJAR, 23845)
 
 st_crs(geoJAR)
+
+qtm(geoJAR)
+```
+
+#### Filling up White Spaces
+
+```{r}
+geoJAR$KAB_KOTA[243]<-"JAKARTA UTARA"
+geoJAR$KAB_KOTA[244]<-"JAKARTA UTARA"
+
+geoJAR$KODE_DESA[243]<-"3188888801"
+geoJAR$KODE_DESA[244]<-"3188888802"
 ```
 
 #### Removal of outer islands
@@ -101,6 +112,8 @@ geoJAR <- filter(geoJAR, KAB_KOTA != "KEPULAUAN SERIBU") # removing rows with th
 geoJAR
 
 unique(geoJAR$KAB_KOTA) # Now we are only left with 5 unique vairbales in KAB_KOTA
+
+qtm(geoJAR)
 ```
 
 #### Retaining the first 9 fields of geoJAR
@@ -118,16 +131,10 @@ For ease of comprehension, we translate the column names into english
 
 ```{r}
 geoJAR <- geoJAR %>% 
+  dplyr::select(2,7) |> 
   dplyr::rename(
-    Object_ID=OBJECT_ID,
-    Province=PROVINSI, 
-    City=KAB_KOTA, 
-    District=KECAMATAN, 
-    Village_Code=KODE_DESA, 
-    Village=DESA, 
-    Sub_District=DESA_KELUR,
-    Code=KODE, 
-    Total_Population=JUMLAH_PEN
+    subdistrict=KECAMATAN, 
+    village_code=KODE_DESA
     )
 ```
 
@@ -138,6 +145,11 @@ For the purpose of this assignment, data from [Riwayat File Vaksinasi DKI Jakart
 As per the assignment criteria, we downloaded vaccination data of the first day of the month from july 2021 to june 2022. For ease of reading the data into one dataframe, we rename the excel sheets to be in the following format "month year". For instance, "Data Vaksinasi Bebasis Keluarhan 1 Juli 2021).xlsx" will be renamed to "July 2021".
 
 Now we are ready to read the excel data!
+
+```{r}
+tmap_mode("view")
+qtm(geoJAR) #two polygons have different name
+```
 
 #### Reading the Aspatial Data
 
@@ -177,23 +189,20 @@ We do so by creating a function that can be used to wrangle all of the date data
 mutate_df<-function(data){
  df_name <- deparse(substitute(data))
  modified<-data |> 
-   mutate(date=df_name,
-          .before=1) |> 
-   select(date, 
-          `KODE KELURAHAN`, 
+   select( `KODE KELURAHAN`, 
           `WILAYAH KOTA`, 
           KECAMATAN, 
           KELURAHAN, 
           `BELUM VAKSIN`, 
-          `TOTAL VAKSIN\r\nDIBERIKAN`) |> 
+          SASARAN) |> 
    rename(village_code=`KODE KELURAHAN`, 
           city_region =`WILAYAH KOTA`, 
           subdistrict=`KECAMATAN`, 
-          ward=`KELURAHAN`, 
-          total_vaccination= `TOTAL VAKSIN\r\nDIBERIKAN`, 
+          district=`KELURAHAN`, 
+          target_vaccination= `SASARAN`, 
           not_vaccinated=`BELUM VAKSIN`) |> 
-  mutate(total_population=not_vaccinated+total_vaccination) |> 
-  mutate(vaccination_rate=total_vaccination/total_population)
+  mutate(total_population=target_vaccination) |> 
+  mutate(vaccination_rate=(target_vaccination-not_vaccinated)/total_population)
  return(modified)
 }
 ```
@@ -201,25 +210,26 @@ mutate_df<-function(data){
 We can now run all the dataframes through this function.
 
 ```{r}
-July_2021<-mutate_df(`July 2021`)
-August_2021<-mutate_df(`August 2021`)
-September_2021<-mutate_df(`September 2021`)
-October_2021<-mutate_df(`October 2021`)
-November_2021<-mutate_df(`November 2021`)
-December_2021<-mutate_df(`December 2021`)
-January_2022<-mutate_df(`January 2022`)
-February_2022<-mutate_df(`February 2022`)
-March_2022<-mutate_df(`March 2022`)
-April_2022<-mutate_df(`April 2022`)
-May_2022<-mutate_df(`May 2022`)
-June_2022<-mutate_df(`June 2022`)
+list_month<- list(`July 2021`, `August 2021`, `September 2021`, `October 2021`, `November 2021`, `December 2021`, `January 2022`, `February 2022`, `March 2022`, `April 2022`, `May 2022`, `June 2022`)
+
+date <- c("2021-7-1", "2021-8-1", "2021-9-1", "2021-10-1", "2021-11-1", "2021-12-1", "2022-1-1", "2022-2-1", "2022-3-1", "2022-4-1", "2022-5-1", "2022-6-1")
+
+lists<-list()
+
+for (i in c(1:12)){
+  lists[[i]]<-mutate_df(list_month[[i]]) |> 
+    mutate(date=as.Date(date[i]),
+           .before=1)
+    
+    
+}
 ```
 
 #### Joining vaccination data
 
 ```{r}
-df <- rbind(July_2021, August_2021, September_2021, October_2021, November_2021, December_2021, January_2022, February_2022, March_2022, April_2022, May_2022, June_2022) |> 
-  na.exclude(TRUE) 
+df<-Reduce(rbind, lists)
+glimpse(df)
 ```
 
 #### Preparing data for joining with geospatial data
@@ -234,20 +244,96 @@ We see that there is an extra variable "KAB.ADM.KEP.SERIBU" that is present in a
 
 ```{r}
 df <- df|> 
-   filter(city_region != "KAB.ADM.KEP.SERIBU")
-
-
+   filter(city_region != "KAB.ADM.KEP.SERIBU") 
 unique(df$city_region) 
+```
+
+Next, we need to add in the village code. Earlier, we found 2 polygons with missing values
+
+```{r}
+setdiff(geoJAR$village_code, df$village_code)
+```
+
+We see that in the aspatial data, no information was collected for these 2 sub districts. We add in these two subdistricts so that both dataframes will match when it is joint.
+
+```{r}
+aspatial_data <- rbind(df, c("2021-07-01", 3188888801,NA),
+                       c("2021-08-01", 3188888801,NA),
+                       c("2021-09-01", 3188888801,NA),
+                       c("2021-10-01", 3188888801,NA),
+                       c("2021-11-01", 3188888801,NA),
+                       c("2021-12-01", 3188888801,NA),
+                       c("2022-01-01", 3188888801,NA),
+                       c("2022-02-01", 3188888801,NA),
+                       c("2022-03-01", 3188888801,NA),
+                       c("2022-04-01", 3188888801,NA),
+                       c("2022-05-01", 3188888801,NA),
+                       c("2022-06-01", 3188888801,NA),
+                       c("2021-07-01", 3188888802,NA),
+                       c("2021-08-01", 3188888802,NA),
+                       c("2021-09-01", 3188888802,NA),
+                       c("2021-10-01", 3188888802,NA),
+                       c("2021-11-01", 3188888802,NA),
+                       c("2021-12-01", 3188888802,NA),
+                       c("2022-01-01", 3188888802,NA),
+                       c("2022-02-01", 3188888802,NA),
+                       c("2022-03-01", 3188888802,NA),
+                       c("2022-04-01", 3188888802,NA),
+                       c("2022-05-01", 3188888802,NA),
+                       c("2022-06-01", 3188888802,NA))
+```
+
+#### Ensuring that the subdistrict names match between Geospatial and Aspatial
+
+Next we do a quick check if subdistricts in Geospatial and Aspatial dataframes match with each other.
+
+```{r}
+setdiff(geoJAR$subdistrict, df$subdistrict)
+```
+
+We see that there are a few differences in names. We rename the geospatial dataframe, in the column for subdistricts in the code chunk below.
+
+```{r}
+n1 <- which(geoJAR$subdistrict == "KRAMATJATI") 
+
+n2 <- which(geoJAR$subdistrict == "PAL MERAH") 
+
+n3 <- which(geoJAR$subdistrict == "PULOGADUNG") 
+
+n4 <- which(geoJAR$subdistrict == "SETIABUDI") 
+
+n5 <- which(geoJAR$subdistrict == "KALIDERES") 
+
+for (i in n1) {   geoJAR$subdistrict[i] <- "KRAMAT JATI" } 
+
+for (i in n2) {   geoJAR$subdistrict[i] <- "PALMERAH" } 
+
+for (i in n3) {   geoJAR$subdistrict[i] <- "PULO GADUNG" } 
+
+for (i in n4) {   geoJAR$subdistrict[i] <- "SETIA BUDI" } 
+
+for (i in n5) {   geoJAR$subdistrict[i] <- "KALI DERES"}
+
+setdiff(geoJAR$subdistrict, df$subdistrict)
+```
+
+#### Selecting columns
+
+To keep our data organised, we retain only specific columns of our data.
+
+```{r}
+df |> 
+  select(date, village_code, subdistrict, vaccination_rate)
 ```
 
 Now we are ready to join the data together!
 
 ### Combine data
 
-To ensure that the end result is a sf dataframe, we use left_join and our sf object is placed at the left. We use st_as_sf too.
+To ensure that the end result is a sf dataframe, we use left_join and our sf object is placed at the left. We use st_as_sf to ensure that the output is a sf object.
 
 ```{r}
-combined_df <- left_join(df, geoJAR, by = c("village_code" = "Village_Code")) |> 
+combined_df <- left_join(df, geoJAR, by = c("village_code", "subdistrict")) |> 
   st_as_sf()
 
 class(combined_df)
@@ -262,23 +348,26 @@ combined_df<- combined_df |>
 
 Now we are ready for Choropleth mapping!
 
-## Chloropleth mapping
+# Chloropleth mapping
+
+In this section, we aim to compute the Gi\* maps of the monthly vaccination rates, that only display the Gi\* values that are significant.
+
+## Creating a tmap function
+
+Given that we have 12 maps to create--corresponding to the 12 months required to plot, we create a tmap plotting function called plot that holds the tmap function that we want to plot.
+
+The function has 2 inputs, the dataframe that holds the vaccination data for all the months, as well as the chosen date, which would be used for filtering for vaccination rates. The output would be a tmap graph.
 
 ```{r}
-ls<-list("July 2021", "August 2021", "September 2021", "October 2021", "November 2021", "December 2021", "January 2022", "February 2022", "March 2022", "April 2022", "May 2022", "June 2022")
-
-```
-
-```{r}
-plot<-function(dataframe, title){
+plot<-function(dataframe, chosen_date){
   tmap_mode("plot")
-tm_shape(filter(combined_df, date %in% dataframe)) +
+tm_shape(filter(combined_df, date %in% chosen_date)) +
   tm_fill("vaccination_rate",
           n= 6,
-          style = "jenks",
+          style = "equal",
           palette="Blues")+
   tm_borders(alpha = 0.5) +
-  tm_layout(main.title= title, 
+  tm_layout(main.title= chosen_date, 
             main.title.position="center",
             main.title.size=1.2,
             legend.height=0.45,
@@ -287,30 +376,42 @@ tm_shape(filter(combined_df, date %in% dataframe)) +
     tm_scale_bar()+
     tm_grid(alpha=0.2)
 }
-plot("July 2021", "Vaccination rate in July 2021")
+plot(combined_df, "2021-07-01")
+```
+
+## Plotting maps
+
+Using the function we have created, we run each month's vaccination data into the function to create 12 maps.
+
+```{r}
+tmap_mode("plot")
+tmap_arrange(plot(combined_df, "2021-07-01"),
+             plot(combined_df, "2021-08-01"),
+             plot(combined_df, "2021-09-01"),
+             plot(combined_df, "2021-10-01"),
+             plot(combined_df, "2021-11-01"),
+             plot(combined_df, "2021-12-01"))
 ```
 
 ```{r}
 tmap_mode("plot")
-tmap_arrange(plot("July 2021", "Vaccination rate in July 2021"),
-             plot("August 2021", "Vaccination rate in August 2021"),
-             plot("September 2021", "Vaccination rate in September 2021"),
-             plot("October 2021", "Vaccination rate in October 2021"),
-             plot("November 2021", "Vaccination rate in November 2021"),
-             plot("December 2021", "Vaccination rate in December 2021"),
-             plot("January 2022", "Vaccination rate in January 2022"),
-             plot("February 2022", "Vaccination rate in February 2022"),
-             plot("March 2022", "Vaccination rate in March 2022"),
-             plot("April 2022", "Vaccination rate in April 2022"),
-             plot("May 2022", "Vaccination rate in May 2022"),
-             plot("June 2022", "Vaccination rate in Jun3 2022"))
+tmap_arrange(plot(combined_df, "2022-01-01"),
+             plot(combined_df, "2022-02-01"),
+             plot(combined_df, "2022-03-01"),
+             plot(combined_df, "2022-04-01"),
+             plot(combined_df, "2022-05-01"),
+             plot(combined_df, "2022-06-01"))
 ```
+
+## Shiny App for Interactive Chloropleth map
+
+We also included a shiny app where the user can input the date desired, and the output would be the tmap graph corresponding to the date selected.
 
 ```{r, eval = FALSE}
 library(shiny)
 library(tmap)
 
-date <- c("July 2021", "August 2021", "September 2021", "October 2021", "November 2021", "December 2021", "January 2022", "February 2022", "March 2022", "April 2022", "May 2022", "June 2022")
+date <- unique(combined_df$date)
 
 # Define the UI
 ui <- fluidPage(
@@ -318,7 +419,7 @@ ui <- fluidPage(
     "date",
     label="pick a month",
     choices=date,
-    selected="July 2021",
+    selected="2021-07-01",
     multiple=FALSE
   ),
   # Create a tmap output element
@@ -344,76 +445,351 @@ shinyApp(ui, server)
 
 ```
 
-## Local Gi Analysis
+## Spatial Patterns revealed by the choropleth maps (not more than 200 words)
 
-Filter
+From the choropleth map, we can see that vaccination rates has been increasing across DKI jarkarta over time. This can be seen from the change in bins, where the lower limit has been increasing over time. Concurrently we see an intensification of blue within the tmaps over time.
 
-```{r}
-filtered<-combined_df |> 
-  filter(date=="July 2021")
-```
+Focusing on the south region of the map, we see that it initially started off having a much lower vaccination rate compared to the rest of the area, but in the later months, it caught up to have a vaccination rate similar to the rest of the area.
 
-### Computing contiguity weights: Queen's method
+# Local Gi Analysis
 
-Different from spdep, sfdep can just condense the calculation of contiguity weights into 1 line. Ie we dont have to code the previous chunk under contiguity method.
+For local Gi analysis, we need to prepare the following:
 
-```{r}
-wm_q <- filtered |> 
-  mutate(nb = st_contiguity(geometry),
-         wt = st_weights(nb,
-                         style = "W"),
-         .before = 1)
-```
+1.  Creating spatial contiguity weights (wts) and neighbour(nb) list
+2.  Creating gstar output by using the new columns generated in step 1 through generating permutations
 
-### Deriving fixed distance weights
+### Computing contiguity weights: Inverse Distance Weights method
 
-```{r}
-geo <- sf::st_geometry(filtered)
-nb <- st_knn(geo, longlat = TRUE)
-dists <- unlist(st_nb_dists(geo, nb))
-```
+Calculating inverse distance weights in computing contiguity weights in local Gi analysis can be valuable for several reasons:
+
+1.  Reflecting spatial proximity: Inverse distance weights reflect the spatial proximity of features in a spatial dataset, with features that are closer to each other having higher weights. This is important in local Gi analysis as it allows us to capture the spatial autocorrelation of a variable at a local level.
+
+2.  Capturing spatial patterns: Inverse distance weights help to capture spatial patterns that may be missed with other types of weights, such as binary weights or distance bands. By assigning weights based on the inverse distance between features, we can capture the influence of nearby features on the local clustering of a variable.
+
+3.  Reducing spatial noise: Inverse distance weights can help to reduce spatial noise in local Gi analysis by giving less weight to features that are further away. This can help to smooth out spatial patterns and provide a more accurate representation of the local clustering of a variable.
+
+### Creating a function to generate gstar values for all the month data
+
+In this function we first compute the contiguity weights using inverse distance weights method, where we are able to use the weights generated to compute Gi star.
 
 ```{r}
-sum_dists<-summary(dists)
+lisa<-function(mth){
+  set.seed(1234) #ensuring that permutations generated are the same each time
+  month<-combined_df |> 
+    filter(date==mth)
+  
+  wm_q<-month |> 
+    mutate(nb = st_contiguity(geometry),
+         wt = st_inverse_distance(nb,
+                                  geometry,
+                                   scale=1,
+                                   alpha=1)) #code chunk to create contiguity weights object
+  
+  HCSA<- wm_q |> 
+  mutate(local_Gi=local_gstar_perm(
+    vaccination_rate, nb, wt, nsim=99),
+    .before=1)  |> #code chunk to compute Gi star value
+  unnest(local_Gi)
+  return(HCSA)
+}
 ```
 
-### Computing fixed distance weights
+### For loop for running all the month data into the Gi function created
+
+After creating our Gi function, we want to create a for loop that will run all the month data through the Gi function to generate outputs.
+
+We start by creating a list ("date") with all the available dates referenced in our combined_df, which is the dataframe within the function we created itself. The idea is to filter combined_df based on each date input into the function, to generate gi star value for all the dates.
+
+In generating a for loop, we start by creating an empty list. Then within the forloop, we run each date within the "date" list into the function"lisa" created, and put each value into the empty list "lisa_LMI".
 
 ```{r}
-wm_fd <- filtered %>%
-  mutate(nb = st_dist_band(geometry,
-                           upper = 3600
-                             ),
-               wt = st_weights(nb),
-               .before = 1)
+date = c("2021-07-01", "2021-08-01", "2021-09-01", "2021-10-01", "2021-11-01", "2021-12-01", "2022-01-01", "2022-02-01", "2022-03-01", "2022-04-01", "2022-05-01", "2022-06-01")
+
+lisa_LMI <- list() 
+
+for (i in 1:12){   lisa_LMI[[i]] <- lisa(date[i]) }
+
+lisa_LMI
 ```
 
-### Creating a function
+## Create a tmap function
+
+To graph out the Gi maps of the monthly vaccination rate, we create a tmap function which is able to take Gi values from the previous lisa_LMI list and plot it into a graph.
+
+Notice that we are required to only display the significant Gi\* values where its p-value \< 0.5. In the previous step to generate gistar values, we used simulations. Therefore, we will be using the "p_sim" column in filtering p-value for significance.
 
 ```{r}
+tmap_function<-  function(x){
+ plot <- 
+    tm_shape(x) +
+    tm_polygons() +
+    tm_shape(x %>% filter(p_sim <0.05)) +
+    tm_fill("gi_star",
+            style="equal",
+            n=5) +
+    tm_borders(alpha = 0.5) +
+    tm_layout(main.title = paste("Significant Local Gi", "(",x$date[1],")"),
+              main.title.size = 0.8)
+  return(plot)
+}
 
+tmap_function(lisa_LMI[[1]]) #Testing the tmap function out
 ```
 
-### Local Spatial Autocorrelation
+The graph in the test looks alright! We will now go ahead with running all the dataframes within "lisa_LMI" through the tmap function!
 
-### Computing local moran's I
+## Creating tmaps
 
 ```{r}
-filtered
-fips <- order(wm_fd$village_code)
-localMI <- local_moran(wm_fd$vaccination_rate,
-                       wm_fd$nb, 
-                       wm_fd$wt)
-head(localMI)
+tmap_mode("plot")
+tmap_arrange(tmap_function(lisa_LMI[[1]]),
+             tmap_function(lisa_LMI[[2]]),
+             tmap_function(lisa_LMI[[3]]),
+             tmap_function(lisa_LMI[[4]]),
+             tmap_function(lisa_LMI[[5]]),
+             tmap_function(lisa_LMI[[6]]))
 ```
-
-### Printing results in a list
 
 ```{r}
-printCoefmat(data.frame(
-  localMI[fips,], 
-  row.names=combined_df$village_code[fips]),
-  check.names=FALSE)
+tmap_arrange(tmap_function(lisa_LMI[[7]]),
+             tmap_function(lisa_LMI[[8]]),
+             tmap_function(lisa_LMI[[9]]),
+             tmap_function(lisa_LMI[[10]]),
+             tmap_function(lisa_LMI[[11]]),
+             tmap_function(lisa_LMI[[12]]))
 ```
 
-### Mapping the local Moran's I
+## Statistical conclusions (not more than 250 words)
+
+From this [website](https://pro.arcgis.com/en/pro-app/latest/tool-reference/spatial-statistics/h-how-hot-spot-analysis-getis-ord-gi-spatial-stati.htm), we understand that a Gi\* value that has a significant and positive z-score, it is a hot spot, representing clustering of high values, and the converse is true for cold spots (significant negative z-score represent clustering of low values).
+
+Our tmap graph isolates observations that are significant. Importantly, areas which are colored "red" are significant cold spots, while areas colored "green" are significant hot spots.
+
+Hot-spot analysis: We notice that the spatial distribution of the hotspots eventually spread to the north regions of the area, as corroborated from our earlier Tmap findings.
+
+Cold-spot analysis: We notice that the cold spots within the area are mostly randomly distributed, besides a small area within the middle of the map. This could be a sign that there is a persistent and unsolved issue of a lack of healthcare resources in that area. We notice that the lower bound of the bandwidths used is also getting increasingly negative, which could signify greater clustering of cold spots over time.
+
+# Emerging Hot Spot Analysis
+
+## Creating a time series cube
+
+In creating a time series cube, we need to ensure that there is a location identifier and a time identifier. Notice that in our combined dataframe (combined_df), our date column is of class "factor". We mutate this to class "date" for the creation of a time series cube.
+
+For the location column, we choose "village_code" given that it is the lowest level of identification for location, to prevent duplicates in disrupting our analysis.
+
+```{r}
+mutate(combined_df, date=lubridate::as_date(date))
+
+Vac_st<- as_spacetime(combined_df,
+                                .loc_col = "village_code",
+                                .time_col = "date")
+```
+
+Subsequently, we compute spatial contiguity weights using the space time cube, for Gi computation.
+
+```{r}
+Vac_nb<-Vac_st |> 
+  activate("geometry") |> 
+  mutate(
+    nb=include_self(st_contiguity(geometry)),
+    wt=st_inverse_distance(nb, 
+                           geometry,
+                           scale=1,
+                           alpha=1),
+    .before=1
+  ) |> 
+  set_nbs("nb") |> 
+  set_wts("wt")
+```
+
+## Computing Gi\*
+
+Once again, we compute the Gi\* value by using spatial contiguity weights generated earlier.
+
+```{r}
+gi_stars<-Vac_nb |> 
+  group_by(date) |> 
+  mutate(gi_star = local_gstar_perm(
+    vaccination_rate, nb, wt, nsim=99)) |> 
+  tidyr::unnest(gi_star)
+gi_stars
+```
+
+## Mann Kendall Test
+
+The Mann-Kendall test is a statistical test used in spatial analysis to detect trends and changes in spatial datasets. The Mann-Kendall test works by calculating the Kendall rank correlation coefficient between pairs of observations in the dataset. If the coefficient is positive, it indicates an increasing trend, while a negative coefficient indicates a decreasing trend. The significance of the trend is then determined using a statistical test.
+
+As per the assignment requirements, we choose 3 unique village codes to focus our analysis on, as listed below:
+
+-   Koja (3172031001)
+
+-   Tambora(3173041007)
+
+-   Johar Baru (3171081003)
+
+To visualise the distribution of the Gi\* value, we first create plots.
+
+```{r}
+cbg <- gi_stars %>% 
+  ungroup() %>% 
+  filter(village_code %in% c(3172031001, 3173041007, 3171081003)) |> 
+  select(village_code, date, gi_star)
+```
+
+```{r}
+cbg_1<-filter(cbg, village_code==3172031001)
+
+ggplot(data=cbg_1, aes(x=lubridate::as_date(date), y=gi_star))+
+  geom_line()+
+  theme_light()
+```
+
+```{r}
+cbg_2<-filter(cbg, village_code==3173041007)
+
+ggplot(data=cbg_2, aes(x=lubridate::as_date(date), y=gi_star))+
+  geom_line()+
+  theme_light()
+```
+
+```{r}
+cbg_3<-filter(cbg, village_code==3171081003)
+
+ggplot(data=cbg_3, aes(x=lubridate::as_date(date), y=gi_star))+
+  geom_line()+
+  theme_light()
+```
+
+We can then run a Mann Kendall test for each of these categories defined by locations chosen. Importantly, the output of the MannKendall() test includes:
+
+1.  **tau:** The Kendall's tau statistic, which measures the strength and direction of the trend in the data. The tau value ranges from -1 to 1, with negative values indicating a decreasing trend, positive values indicating an increasing trend, and values close to zero indicating no trend.
+
+2.  **sl:** The two-sided p-value for the test, which measures the statistical significance of the trend. The p-value ranges from 0 to 1, with p-values less than the significance level indicating that the trend is statistically significant.
+
+```{r}
+cbg_1 |> 
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) |> 
+  tidyr::unnest_wider(mk)
+```
+
+From the results of Koja, we see a slight positive tau value and an insignificant sl value. This means that there is a slight positive association in gi\* values and date. However, this result is insignificant. We repeat this for the other 2 locations.
+
+```{r}
+cbg_2 |> 
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) |> 
+  tidyr::unnest_wider(mk)
+```
+
+We see a similar result for Tambora.
+
+```{r}
+cbg_3 |> 
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) |> 
+  tidyr::unnest_wider(mk)
+```
+
+For our last location (Johar Baru), the tau and sl values are vastly different. We see that there is a negative association between gi\* and date, and that this association is positive.
+
+### Statistical Conclusions
+
+For Koja and Tambora, there was a positive association between Gi\* and date. This means that as months passes, Gi\* will become more positive. This signifies greater clustering of hotspots. In this context, this means that there is greater clustering of high vaccination rates in Koja and Tambora, which is desirable from a policy-maker's perspective. However, this conclusion is not statistically significant.
+
+On the other hand, for Johar Baru, there was a negative association between Gi\* and date. As month passes, there is a greater clustering of low vaccination rates in Johar Baru, which is undesirable from a policy-makers perspective. This result is statistically significant, and implies that further action needs to be taken.
+
+## Performing Emerging Hotspot analysis
+
+In performing emerging hotspot analysis, we run the gi_star values from all the village codes through the MannKendall function (ehsa). We can narrow the ehsa list to only significant gi_star observations by using a filter function (ehsa_significant).
+
+```{r}
+ehsa <- gi_stars %>%
+  group_by(village_code) %>%
+  summarise(mk = list(
+    unclass(
+      Kendall::MannKendall(gi_star)))) %>%
+  tidyr::unnest_wider(mk)
+
+ehsa_significant<-ehsa |> 
+  filter(sl<=0.05)
+```
+
+### Arrange to show significant emerging hot/cold spots
+
+```{r}
+emerging <- ehsa %>% 
+  arrange(sl, abs(tau)) %>% 
+  slice(1:5)
+```
+
+## Performing Emerging Hotspot analysis
+
+We will perform ENSA analysis by using emerging_hotspot_analysis() of sfdep package. It takes a space time object and the quoted name if the variable of interest. The k argument is used to specify the number of time lags which is set to 1 by default. nsim map numvers of simulation to be performed
+
+```{r}
+set.seed(1234)
+         ehsa <- emerging_hotspot_analysis(
+  x = Vac_st, 
+  .var = "vaccination_rate", 
+  k = 1, 
+  nsim = 99
+)
+```
+
+## Visualising the distribution of EHSA classes
+
+In the code chunk below, ggplot2 functions are used to reveal the distribution of EHSA classes as a bar chart.
+
+```{r}
+ggplot(data = ehsa,
+       aes(x = classification)) +
+  geom_bar()
+```
+
+## Visualising EHSA
+
+To visualise the geographic distribution of the EHSA classes, we need to join the ehsa table with our classification column with geoJAR, with the geometry field. We conduct a left join of the two.
+
+```{r}
+vaccination_ehsa <- geoJAR |>
+  left_join(ehsa,
+            by= c("village_code"="location"))
+```
+
+We are now ready to plot all the significant classifications.
+
+```{r}
+ehsa_sig <- vaccination_ehsa  %>%
+  filter(p_value < 0.05)
+tmap_mode("plot")
+tm_shape(vaccination_ehsa) +
+  tm_polygons() +
+  tm_borders(alpha = 0.5) +
+tm_shape(ehsa_sig) +
+  tm_fill("classification") + 
+  tm_borders(alpha = 0.4)
+```
+
+### Statistical Conclusions
+
+| Pattern Name         | Definition                                                                                                                                                                                                                                                                                                                 |
+|--------------------|----------------------------------------------------|
+| Oscillating coldspot | A statistically significant cold spot for the final time-step interval that has a history of also being a statistically significant hot spot during a prior time step. Less than 90 percent of the time-step intervals have been statistically significant cold spots.                                                     |
+| Oscillating hotspot  | A statistically significant hot spot for the final time-step interval that has a history of also being a statistically significant cold spot during a prior time step. Less than 90 percent of the time-step intervals have been statistically significant hot spots.                                                      |
+| Sporadic cold spot   | A statistically significant cold spot for the final time-step interval with a history of also being an on-again and off-again cold spot. Less than 90 percent of the time-step intervals have been statistically significant cold spots and none of the time-step intervals have been statistically significant hot spots. |
+
+: Source: [pro.arcgis.com](https://pro.arcgis.com/en/pro-app/latest/tool-reference/space-time-pattern-mining/learnmoreemerging.htm#:~:text=Oscillating%20Cold%20Spot,been%20statistically%20significant%20cold%20spots.)
+
+With this understanding, we can infer that
+
+1.  Greater number of oscillating hot spots than oscillating cold spots
+
+This could imply that there more states are moving from the clustering of low to high vaccination rates as compared to the reverse. This makes sense if we consider the ongoing inoculation program by the government.
+
+2.  Presence of Sporadic cold spots
+
+This could imply the presence of areas in which vaccination rate often switch between insignificant levels of clustering and significant levels of clustering of low vaccination rates. 

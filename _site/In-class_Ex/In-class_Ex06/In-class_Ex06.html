@@ -516,7 +516,7 @@ First 10 features:
 <p>Notice that <code>st_weights()</code> provides tree arguments, they are:</p>
 <ul>
 <li><p><em>nb</em>: A neighbor list object as created by st_neighbors().</p></li>
-<li><p><em>style</em>: Default "W" for row standardized weights. This value can also be "B", "C", "U", "minmax", and "S". B is the basic binary coding, W is row standardised (sums over all links to n), C is globally standardised (sums over all links to n), U is equal to C divided by the number of neighbours (sums over all links to unity), while S is the variance-stabilizing coding scheme proposed by Tiefelsdorf et al.&nbsp;1999, p.&nbsp;167-168 (sums over all links to n).</p></li>
+<li><p><em>style</em>: Default “W” for row standardized weights. This value can also be “B”, “C”, “U”, “minmax”, and “S”. B is the basic binary coding, W is row standardised (sums over all links to n), C is globally standardised (sums over all links to n), U is equal to C divided by the number of neighbours (sums over all links to unity), while S is the variance-stabilizing coding scheme proposed by Tiefelsdorf et al.&nbsp;1999, p.&nbsp;167-168 (sums over all links to n).</p></li>
 <li><p><em>allow_zero</em>: If TRUE, assigns zero as lagged value to zone without neighbors.</p></li>
 </ul>
 <div class="cell">
@@ -598,7 +598,7 @@ First 10 features:
 <h3 data-number="6.1" class="anchored" data-anchor-id="deriving-fixed-distance-weights"><span class="header-section-number">6.1</span> Deriving fixed distance weights</h3>
 <p>Before we can derive the fixed distance weights, we need to determine the upper limit for distance band by using the steps below:</p>
 <ul>
-<li><p><a href="https://sfdep.josiahparry.com/reference/st_nb_dists.html"><code>st_nb_dists()</code></a> of sfdep is used to calculate the nearest neighbour distance. The output is a list of distances for each observation's neighbors list.</p></li>
+<li><p><a href="https://sfdep.josiahparry.com/reference/st_nb_dists.html"><code>st_nb_dists()</code></a> of sfdep is used to calculate the nearest neighbour distance. The output is a list of distances for each observation’s neighbors list.</p></li>
 <li><p><a href="https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/unlist"><code>unlist()</code></a> of Base R is then used to return the output as a vector so that the summary statistics of the nearest neighbour distances can be derived.</p></li>
 </ul>
 <div class="cell">
@@ -620,7 +620,7 @@ First 10 features:
 <li><p><a href="https://sfdep.josiahparry.com/reference/st_dist_band.html"><code>st_dists_band()</code></a> of sfdep is used to identify neighbors based on a distance band (i.e.&nbsp;66km). The output is a list of neighbours (i.e.&nbsp;nb).</p></li>
 <li><p><a href="https://sfdep.josiahparry.com/reference/st_weights.html"><code>st_weights()</code></a> is then used to calculate polygon spatial weights of the nb list. Note that:</p>
 <ul>
-<li><p>the default <code>style</code> argument is set to "W" for row standardized weights, and</p></li>
+<li><p>the default <code>style</code> argument is set to “W” for row standardized weights, and</p></li>
 <li><p>the default <code>allow_zero</code> is set to TRUE, assigns zero as lagged value to zone without neighbors.</p></li>
 </ul></li>
 </ul>
@@ -639,7 +639,7 @@ First 10 features:
 <li><p><a href="https://sfdep.josiahparry.com/reference/st_knn.html"><code>st_knn()</code></a> of sfdep is used to identify neighbors based on k (i.e.&nbsp;k = 8 indicates the nearest eight neighbours). The output is a list of neighbours (i.e.&nbsp;nb).</p></li>
 <li><p><a href="https://sfdep.josiahparry.com/reference/st_weights.html"><code>st_weights()</code></a> is then used to calculate polygon spatial weights of the nb list. Note that:</p>
 <ul>
-<li><p>the default <code>style</code> argument is set to "W" for row standardized weights, and</p></li>
+<li><p>the default <code>style</code> argument is set to “W” for row standardized weights, and</p></li>
 <li><p>the default <code>allow_zero</code> is set to TRUE, assigns zero as lagged value to zone without neighbors.</p></li>
 </ul></li>
 </ul>
