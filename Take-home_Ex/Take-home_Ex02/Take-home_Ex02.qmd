@@ -3,9 +3,6 @@ title: "Take-home Exercise 2"
 date: "19 February 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
-format: 
-  html:
-    code-fold: true
 execute: 
   echo: true
   eval: true
@@ -15,9 +12,21 @@ editor: visual
 
 # Objectives
 
-Exploratory Spatial Data Analysis (ESDA) hold tremendous potential to address complex problems facing society. In this study, you are tasked to apply appropriate Local Indicators of Spatial Association (LISA) and Emerging Hot Spot Analysis (EHSA) to undercover the spatio-temporal trends of COVID-19 vaccination in DKI Jakarta.
+Exploratory Spatial Data Analysis (ESDA) hold tremendous potential to address complex problems facing society. In this study, we are tasked to apply appropriate Local Indicators of Spatial Association (LISA) and Emerging Hot Spot Analysis (EHSA) to undercover the spatio-temporal trends of COVID-19 vaccination in DKI Jakarta.
+
+The main tasks of this exercise includes
+
+-   Data Wrangling
+
+-   Choropleth mapping
+
+-   Local Gi Analysis
+
+-   Emerging hotspot analysis
 
 ## Installing Packages
+
+We first start off by loading the necessary R packages into our platform.
 
 ```{r}
 pacman::p_load(sf, sfdep, tmap, tidyverse, knitr, kableExtra)
@@ -26,6 +35,8 @@ pacman::p_load(sf, sfdep, tmap, tidyverse, knitr, kableExtra)
 # Data Wrangling
 
 ## Load data
+
+The datasets that we will be using are listed below:
 
 ```{r}
 # initialise a dataframe of our geospatial and aspatial data details
@@ -52,9 +63,11 @@ kable(head(datasets), caption="Datasets Used") %>%
 
 ### Geospatial data
 
+The data set can be downloaded at Indonesia Geospatial portal, specifically at [this page](https://www.indonesia-geospasial.com/2020/04/download-shapefile-shp-batas-desa.html).
+
 #### Reading Geospatial data into R
 
-For the purpose of this study, DKI Jakarta administration boundary 2019 will be used. The data set can be downloaded at Indonesia Geospatial portal, specifically at [this page](https://www.indonesia-geospasial.com/2020/04/download-shapefile-shp-batas-desa.html).
+For the purpose of this study, DKI Jakarta administration boundary 2019 will be used.
 
 ```{r}
 geoJAR <- st_read(dsn = "data/geospatial/",
@@ -68,12 +81,6 @@ From the output message, we learn that:
 -   269 features, 161 fields
 
 -   Assigned CRS is [WGS 84](https://epsg.io/4326), the 'World Geodetic System 1984'.
-
-#### Data Pre-Processing
-
-We need to check for invalid geometries and missing values in our geospatial data.
-
-length(which(st_is_valid(geoJAR) == FALSE)) geoJAR\[rowSums(is.na(geoJAR))!=0,\]
 
 #### Checking CRS
 
@@ -93,6 +100,8 @@ qtm(geoJAR)
 ```
 
 #### Filling up White Spaces
+
+We realise there are 2 missing areas that are listed in the geospatial data where its fields in KAB_KOTA and KODE_DESA are missing. We fill it in with dummy variables below, to ensure that it is not removed by a blanket exclude to all NA values.
 
 ```{r}
 geoJAR$KAB_KOTA[243]<-"JAKARTA UTARA"
@@ -127,7 +136,7 @@ geoJAR <- geoJAR[, 0:9]
 
 #### Translating column names
 
-For ease of comprehension, we translate the column names into english
+For ease of comprehension, we translate the column names into english.
 
 ```{r}
 geoJAR <- geoJAR %>% 
@@ -152,6 +161,8 @@ qtm(geoJAR) #two polygons have different name
 ```
 
 #### Reading the Aspatial Data
+
+In the code chunk below, we read all the excel files in our data folder to a dataframe with the date as the title.
 
 ```{r}
 # Load the readxl library
@@ -405,7 +416,7 @@ tmap_arrange(plot(combined_df, "2022-01-01"),
 
 ## Shiny App for Interactive Chloropleth map
 
-We also included a shiny app where the user can input the date desired, and the output would be the tmap graph corresponding to the date selected.
+We also included a shiny app where the user can input the date desired, and the output would be the tmap graph corresponding to the date selected. However, because of some technical difficulties, i am unable to display the web app.
 
 ```{r, eval = FALSE}
 library(shiny)
@@ -777,7 +788,7 @@ tm_shape(ehsa_sig) +
 ### Statistical Conclusions
 
 | Pattern Name         | Definition                                                                                                                                                                                                                                                                                                                 |
-|--------------------|----------------------------------------------------|
+|---------------------|---------------------------------------------------|
 | Oscillating coldspot | A statistically significant cold spot for the final time-step interval that has a history of also being a statistically significant hot spot during a prior time step. Less than 90 percent of the time-step intervals have been statistically significant cold spots.                                                     |
 | Oscillating hotspot  | A statistically significant hot spot for the final time-step interval that has a history of also being a statistically significant cold spot during a prior time step. Less than 90 percent of the time-step intervals have been statistically significant hot spots.                                                      |
 | Sporadic cold spot   | A statistically significant cold spot for the final time-step interval with a history of also being an on-again and off-again cold spot. Less than 90 percent of the time-step intervals have been statistically significant cold spots and none of the time-step intervals have been statistically significant hot spots. |
@@ -786,10 +797,14 @@ tm_shape(ehsa_sig) +
 
 With this understanding, we can infer that
 
-1.  Greater number of oscillating hot spots than oscillating cold spots
+1.  Presence of large numbers of oscillating hotspots and cold spots
+
+The presence of oscillating spots for vaccination rates in emerging hotspot analysis could suggest that there are fluctuations in vaccine uptake within certain areas or populations over time. This may indicate that certain groups of people are more likely to get vaccinated during certain times or in response to certain events or circumstances, such as outbreaks of infectious diseases.
+
+2.  Greater number of oscillating hot spots than oscillating cold spots
 
 This could imply that there more states are moving from the clustering of low to high vaccination rates as compared to the reverse. This makes sense if we consider the ongoing inoculation program by the government.
 
-2.  Presence of Sporadic cold spots
+3.  Presence of Sporadic cold spots
 
-This could imply the presence of areas in which vaccination rate often switch between insignificant levels of clustering and significant levels of clustering of low vaccination rates. 
+The presence of sporadic cold spots for vaccination rates in emerging hotspot analysis could indicate that certain areas or populations are not receiving the same level of vaccination coverage as others. These cold spots may represent areas where people have limited access to vaccines, where vaccine hesitancy is more prevalent, or where there is a lack of public health messaging about the importance of vaccination.
