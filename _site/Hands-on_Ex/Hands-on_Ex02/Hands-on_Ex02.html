@@ -165,6 +165,14 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
     <a class="dropdown-item" href="../../Hands-on_Ex/Hands-on_Ex07/Hands-on_Ex07.html">
  <span class="dropdown-text">Hands-on Exercise 7</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../../Hands-on_Ex/Hands-on_Ex08/Hands-on_Ex08.html">
+ <span class="dropdown-text">Hands-on Exercise 8</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../../Hands-on_Ex/Hands-on_Ex09/Hands-on_Ex09.html">
+ <span class="dropdown-text">Hands-on Exercise 9</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -389,18 +397,13 @@ dbl (2): Pop, Time
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="st">`</span><span class="at">ECONOMY ACTIVE</span><span class="st">`</span> <span class="sc">&gt;</span> <span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning: `funs()` was deprecated in dplyr 0.8.0.
-Please use a list of either functions or lambdas: 
+ℹ Please use a list of either functions or lambdas:
 
-  # Simple named list: 
-  list(mean = mean, median = median)
+# Simple named list: list(mean = mean, median = median)
 
-  # Auto named with `tibble::lst()`: 
-  tibble::lst(mean, median)
+# Auto named with `tibble::lst()`: tibble::lst(mean, median)
 
-  # Using lambdas
-  list(~ mean(., trim = .2), ~ median(., na.rm = TRUE))
-This warning is displayed once every 8 hours.
-Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.</code></pre>
+# Using lambdas list(~ mean(., trim = .2), ~ median(., na.rm = TRUE))</code></pre>
 </div>
 </div>
 <ol start="2" type="1">
@@ -531,7 +534,7 @@ Call `lifecycle::last_lifecycle_warnings()` to see where this warning was genera
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mpsz_pop2020<span class="sc">$</span>DEPENDENCY)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
- 0.0000  0.6540  0.7063  0.7712  0.7657 19.0000      92 </code></pre>
+ 0.0000  0.7113  0.7926  0.8561  0.8786 19.0000      92 </code></pre>
 </div>
 </div>
 <p>With reference to results, we set break points at 0.6, 0.7, 0.8, 0.9, 1.0</p>
