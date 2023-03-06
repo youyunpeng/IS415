@@ -102,7 +102,7 @@ st_bbox(mpsz_svy21)
 # Aspatial Data Wrangling
 
 ```{r}
-condo_resale = read.csv("data/aspatial/Condo_resale_2015.csv")
+condo_resale = read_csv("data/aspatial/Condo_resale_2015.csv")
 ```
 
 After importing, we can just take a look using glimpse() to better understand the data structure.

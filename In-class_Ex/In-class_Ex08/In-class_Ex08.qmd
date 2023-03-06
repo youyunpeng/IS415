@@ -1,5 +1,5 @@
 ---
-title: "In-class Exercise 8: Emerging hot spot analysis and Global measures of spatial association"
+title: "In-class Exercise 8: Buiding hedonic pricing model with GWR"
 date: "20 February 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
@@ -10,3 +10,40 @@ execute:
   warning: false
 editor: visual
 ---
+## Installing packages
+```{r}
+pacman::p_load(olsrr, ggpubr, sf, spdep, GWmodel, tmap, tidyverse, gtsummary, sfdep)
+```
+
+## Geospatial data
+```{r}
+mpsz <- st_read(dsn = "data/geospatial",
+                layer ="MP14_SUBZONE_WEB_PL")
+```
+See that data is already in SVY21 crs
+
+## Aspatial data
+```{r}
+condo_resale = read_csv("data/aspatial/Condo_resale_2015.csv")
+```
+```{r}
+condo_resale.sf <- st_as_sf(condo_resale,
+                            coords = c("LONGITUDE", "LATITUDE"),
+                            crs = 4326) %>%
+  st_transform(crs = 3414)
+```
+
+Building model
+```{r}
+condo.mlr <- lm(formula = SELLING_PRICE ~ AREA_SQM + AGE    + 
+                  PROX_CBD + PROX_CHILDCARE + PROX_ELDERLYCARE +
+                  PROX_URA_GROWTH_AREA + PROX_HAWKER_MARKET + PROX_KINDERGARTEN + 
+                  PROX_MRT  + PROX_PARK + PROX_PRIMARY_SCH + 
+                  PROX_TOP_PRIMARY_SCH + PROX_SHOPPING_MALL + PROX_SUPERMARKET + 
+                  PROX_BUS_STOP + NO_Of_UNITS + FAMILY_FRIENDLY + FREEHOLD, 
+                data=condo_resale.sf)
+summary(condo.mlr)
+```
+
+
+
