@@ -1,0 +1,708 @@
+---
+title: "Take-home Exercise 3: Predicting HDB Public Housing Resale Pricies using Geographically Weighted Methods"
+date: "11 March 2023"
+date-modified: "`r Sys.Date()`"
+number-sections: true
+format: html
+execute: 
+  echo: true
+  eval: true
+  warning: false
+editor: visual
+---
+
+## Task
+
+In this take-home exercise, you are tasked to predict HDB resale prices at the sub-market level (i.e. HDB 3-room, HDB 4-room and HDB 5-room) for the month of January and February 2023 in Singapore. The predictive models must be built by using by using conventional OLS method and GWR methods. You are also required to compare the performance of the conventional OLS method versus the geographical weighted methods.
+
+## Installing packages
+
+```{r}
+pacman::p_load(olsrr, corrplot, ggpubr, sf, spdep, GWmodel, tmap, tidyverse, gtsummary, sfdep, onemapsgapi, stringr)
+```
+
+OneMapAPI: usage
+
+```{r eval = FALSE}
+library(sf)
+library(onemapsgapi)
+
+token <- "your value"
+search_themes(token, "searchval")
+get_theme_status(token, "themename")
+themetibble <- get_theme(token, "themename")
+themesf <- st_as_sf(themetibble, coords=c("Lng", "Lat"), crs=4326)
+```
+
+```{r}
+library(onemapsgapi)
+token <- get_token("pengyouyun@gmail.com", "Learning@2015")
+childcare<-get_theme(token,"childcare")
+themes<-search_themes(token)
+themes
+```
+
+## Aspatial data
+
+reading csv file
+
+```{r eval = FALSE}
+resale<-read_csv("data/aspatial/resale-flat-prices-based-on-registration-date-from-jan-2017-onwards.csv")
+head(resale,5)
+```
+
+### Filtering to include transactional periods
+
+```{r eval = FALSE}
+# transaction period from 01-Jan-19 to 30-Sep-20
+# 4-room flats 
+resale <- resale %>% 
+  filter(flat_type == "4 ROOM") %>%
+  filter(month >= "2021-01" & month < "2022-12")
+```
+
+```{r eval = FALSE}
+resale$street_name <- gsub("ST\\.", "SAINT", resale$street_name)
+```
+
+### Creating function to get longitude and lattitude
+
+```{r eval = FALSE}
+library(httr)
+library(rjson)
+geocode <- function(block, streetname) {
+  base_url <- "https://developers.onemap.sg/commonapi/search"
+  address <- paste(block, streetname, sep = " ")
+  query <- list("searchVal" = address, 
+                "returnGeom" = "Y",
+                "getAddrDetails" = "N",
+                "pageNum" = "1")
+  
+  res <- GET(base_url, query = query)
+  restext<-content(res, as="text")
+  
+  output <- fromJSON(restext)  %>% 
+    as.data.frame %>%
+    select(results.LATITUDE, results.LONGITUDE)
+
+  return(output)
+}
+```
+
+### passing code through resale df
+
+```{r eval = FALSE}
+resale$LATITUDE <- 0
+resale$LONGITUDE <- 0
+
+for (i in 1:nrow(resale)){
+  temp_output <- geocode(resale[i, 4], resale[i, 5])
+  
+  resale$LATITUDE[i] <- temp_output$results.LATITUDE
+  resale$LONGITUDE[i] <- temp_output$results.LONGITUDE
+}
+```
+
+### figure how to move this into aspatial file
+
+```{r eval = FALSE}
+saveRDS(resale, file="resale", compress=FALSE)
+```
+
+now we can read the resale file easily
+
+```{r}
+resale<-readRDS("resale")
+```
+
+## Geospatial Data
+
+Our geospatial data can be split into several categories
+
++-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
+|             | Base                    | Extracted                                            | Sourced                                               |
++=============+=========================+======================================================+=======================================================+
+| Description | geographical boundaries | Independent variable data extracted using OneMap API | Independent variable data extracted from the internet |
++-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
+| Layer names | 1.  mpsz                | 1.  childcare                                        | 1.  bus stop                                          |
+|             |                         | 2.  elder care                                       |                                                       |
+|             |                         | 3.  hawker centre                                    | 2.  shopping mall                                     |
+|             |                         | 4.  kindergartens                                    |                                                       |
+|             |                         | 5.  parks                                            | 3.  supermarket                                       |
+|             |                         | 6.  libraries                                        |                                                       |
+|             |                         | 7.  dengue clusters                                  |                                                       |
+|             |                         | 8.  sport facilities                                 |                                                       |
++-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
+
+::: panel-tabset
+### Extracted
+
+```{r eval = FALSE}
+library(sf)
+library(onemapsgapi)
+
+# extracting eldercare data as an sf object into R
+eldercare<-get_theme(token,"eldercare")
+eldercare.sf <- st_as_sf(eldercare, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = eldercare.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "eldercare",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting eldercare data as an sf object into R
+hawkercentre<-get_theme(token,"hawkercentre")
+hawkercentre.sf <- st_as_sf(hawkercentre, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = hawkercentre.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "hawkercentre",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting childcare data as an sf object into R
+childcare<-get_theme(token,"childcare")
+childcare.sf <- st_as_sf(childcare, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = childcare.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "childcare",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting kindergartens data as an sf object into R
+kindergartens<-get_theme(token,"kindergartens")
+kindergartens.sf <- st_as_sf(kindergartens, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = kindergartens.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "kindergartens",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting parks data as an sf object into R
+parks<-get_theme(token,"nationalparks")
+parks.sf <- st_as_sf(parks, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = parks.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "parks",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting library data as an sf object into R
+library<-get_theme(token,"libraries")
+library.sf <- st_as_sf(library, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = library.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "libraries",
+         driver = "ESRI Shapefile")
+```
+
+Extracting dengue cluster and sports facility data:
+
+```{r eval=FALSE}
+dengue<-get_theme(token,"dengue_cluster")
+sport<-get_theme(token,"sportsg_sport_facilities")
+
+dengue
+sport
+```
+
+![](images/Screenshot%202023-03-11%20at%205.46.23%20PM.png)
+
+When we browse the dengue and sports data, we see that the lat and lng columns are not configured in the way we expect it to be. In the Lng column, the longitude of the location is first placed followed by a "\|" and then the latitude of the location.
+
+Notice that the Lng and Lat are not in the format we want. We create a function to extract the Lng numbers from the string, using str_extract from the package stringr.
+
+note the use of the following syntax
+
+-   "\\\\d+" extracts one or more digits that occur before the \| character
+
+-   "\\.?" matches the decimal point occuring in lng records
+
+-   "\\d\*" matches any digits that come after the decimal point
+
+```{r eval = FALSE}
+lng.mutate<-function(df){
+  df |> 
+    mutate(Lng=str_extract(Lng, "\\d+\\.?\\d*"))
+}
+```
+
+```{r eval = FALSE}
+# extracting dengue data as an sf object into R
+dengue<-get_theme(token,"dengue_cluster")
+dengue<-lng.mutate(dengue)
+
+dengue.sf <- st_as_sf(dengue, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = dengue.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "dengue_cluster",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+# extracting dengue data as an sf object into R
+sport<-get_theme(token,"sportsg_sport_facilities")
+sport<-lng.mutate(sport)
+
+sport.sf <- st_as_sf(sport, coords=c("Lng", "Lat"), crs=4326)
+
+# creating a saved sf object in data file for easy reference
+st_write(obj = sport.sf,
+         dsn = "data/geospatial/extracted",
+         layer = "sportsg_sport_facilities",
+         driver = "ESRI Shapefile")
+```
+
+### Sourced
+
+1.  Bus stop data Extracted from: [datamall.lta](https://datamall.lta.gov.sg/content/datamall/en/search_datasets.html?searchText=bus%20stop)
+
+2.  Shopping mall data Extracted from: <https://github.com/ValaryLim/Mall-Coordinates-Web-Scraper/blob/master/mall_coordinates_updated.csv>
+
+since it is in a csv file, we convert it into a shape file and save it into our extracted data file in the code chunk below
+
+```{r eval = FALSE}
+mall.df<- read.csv("data/geospatial/sourced/mall_coordinates_updated.csv") |> 
+  select(latitude, longitude, name) |> 
+  dplyr::relocate(name)
+
+mall.sf <- st_as_sf(mall.df, coords=c("longitude", "latitude"), crs=4326)
+
+st_write(obj = mall.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "shoppingmall",
+         driver = "ESRI Shapefile")
+```
+
+3.  Supermarkets extracted data from: [Onemap.gov](https://www.onemap.gov.sg/main/v2/essentialamenities)
+:::
+
+## Reading collected geospatial data into R
+
+::: panel-tabset
+### Base
+
+1.  reading mpsz
+
+```{r}
+mpsz.sf <- st_read(dsn = "data/geospatial/base", layer = "MP14_SUBZONE_WEB_PL")
+```
+
+2.  reading boundary data (error)
+
+```{r eval = FALSE}
+boundary.sf <- st_read(dsn = "data/geospatial/base", layer = "national-map-polygon-kml") |> 
+  st_as_sf()
+```
+
+### Extracted
+
+```{r}
+eldercare.sf <- st_read(dsn = "data/geospatial/extracted", layer = "eldercare")
+hawkercentre.sf <- st_read(dsn = "data/geospatial/extracted", layer = "hawkercentre")
+childcare.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "childcare")
+kindergartens.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "kindergartens")
+parks.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "parks")
+library.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "libraries")
+dengue.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "dengue_cluster")
+sport.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "sportsg_sport_facilities")
+```
+
+### Sourced
+
+```{r}
+busstop.sf <- st_read(dsn = "data/geospatial/sourced", layer = "BusStop")
+shoppingmall.sf<-st_read(dsn = "data/geospatial/sourced", layer = "shoppingmall")
+supermarket.sf<-st_read(dsn = "data/geospatial/sourced", layer = "SUPERMARKETS")
+```
+:::
+
+### Data pre-processing
+
+#### **Removing unnecessary columns**
+
+For locational factor dataframes, we only need to know the name of the facility and its geometry column.
+
+```{r}
+eldercare.sf<-select(eldercare.sf, 1)
+
+hawkercentre.sf<-select(hawkercentre.sf, 1)
+
+childcare.sf<-select(childcare.sf, 1)
+
+parks.sf<-select(parks.sf, 1)
+
+library.sf<-select(library.sf, 1)
+
+dengue.sf<-select(dengue.sf, 1)
+
+sport.sf<-select(sport.sf, 1)
+
+shoppingmall.sf<-select(shoppingmall.sf, 1)
+
+busstop.sf<-select(busstop.sf, 1)
+
+supermarket.sf<- select(supermarket.sf, 1)
+```
+
+#### **Check for invalid geometries**
+
+```{r}
+length(which(st_is_valid(eldercare.sf) == FALSE))
+
+length(which(st_is_valid(hawkercentre.sf) == FALSE))
+
+length(which(st_is_valid(childcare.sf) == FALSE))
+
+length(which(st_is_valid(kindergartens.sf) == FALSE))
+
+length(which(st_is_valid(parks.sf) == FALSE))
+
+length(which(st_is_valid(library.sf) == FALSE))
+
+length(which(st_is_valid(dengue.sf) == FALSE))
+
+length(which(st_is_valid(sport.sf) == FALSE))
+
+length(which(st_is_valid(busstop.sf) == FALSE))
+
+length(which(st_is_valid(shoppingmall.sf) == FALSE))
+
+length(which(st_is_valid(supermarket.sf) == FALSE))
+
+length(which(st_is_valid(mpsz.sf) == FALSE))
+```
+
+We see that mpsz has 9 invalid geometries. Lets address them and check again
+
+```{r}
+mpsz.sf <- st_make_valid(mpsz.sf)
+length(which(st_is_valid(mpsz.sf) == FALSE))
+```
+
+#### **Check for missing values**
+
+```{r}
+eldercare.sf[rowSums(is.na(eldercare.sf))!=0,]
+```
+
+```{r}
+hawkercentre.sf[rowSums(is.na(hawkercentre.sf))!=0,]
+```
+
+```{r}
+childcare.sf[rowSums(is.na(childcare.sf))!=0,]
+```
+
+```{r}
+kindergartens.sf[rowSums(is.na(kindergartens.sf))!=0,]
+```
+
+```{r}
+parks.sf[rowSums(is.na(parks.sf))!=0,]
+```
+
+```{r}
+library.sf[rowSums(is.na(library.sf))!=0,]
+```
+
+```{r}
+dengue.sf[rowSums(is.na(dengue.sf))!=0,]
+```
+
+```{r}
+sport.sf[rowSums(is.na(sport.sf))!=0,]
+```
+
+```{r}
+busstop.sf[rowSums(is.na(busstop.sf))!=0,]
+```
+
+```{r}
+shoppingmall.sf[rowSums(is.na(shoppingmall.sf))!=0,]
+```
+
+```{r}
+supermarket.sf[rowSums(is.na(supermarket.sf))!=0,]
+```
+
+## Verifying + Transforming Coordinate system
+
+::: panel-tabset
+#### Base
+
+```{r}
+st_crs(mpsz.sf)
+```
+
+#### Extracted
+
+```{r}
+st_crs(eldercare.sf)
+st_crs(hawkercentre.sf)
+st_crs(childcare.sf)
+st_crs(kindergartens.sf)
+st_crs(parks.sf)
+st_crs(library.sf)
+st_crs(dengue.sf)
+st_crs(sport.sf)
+```
+
+#### Sourced
+
+```{r}
+st_crs(busstop.sf)
+st_crs(shoppingmall.sf)
+st_crs(supermarket.sf)
+```
+
+Note: our projected CRS should be SVY21 (EPSG code 3414). However, some of the extracted data sets are in WGS84, and others are in SVY21 with the incorrect EPSG code (EPSG 9001)
+:::
+
+### Transforming CRS
+
+```{r}
+#st_set_crs() assigns proper EPSG code
+busstop.sf<-st_set_crs(busstop.sf, 3414)
+supermarket.sf<-st_set_crs(supermarket.sf, 3414)
+
+#st_transform() changes CRS from one to another
+eldercare.sf<-st_transform(eldercare.sf, crs=3414)
+hawkercentre.sf<-st_transform(hawkercentre.sf, crs=3414)
+childcare.sf<-st_transform(childcare.sf, crs=3414)
+kindergartens.sf<-st_transform(kindergartens.sf, crs=3414)
+parks.sf<-st_transform(parks.sf, crs=3414)
+library.sf<-st_transform(library.sf, crs=3414)
+dengue.sf<-st_transform(dengue.sf, crs=3414)
+sport.sf<-st_transform(sport.sf, crs=3414)
+shoppingmall.sf<-st_transform(shoppingmall.sf, crs=3414)
+```
+
+## Checking crs
+
+::: panel-tabset
+#### Base
+
+```{r}
+st_crs(mpsz.sf)
+```
+
+#### Extracted
+
+```{r}
+st_crs(eldercare.sf)
+st_crs(hawkercentre.sf)
+st_crs(childcare.sf)
+st_crs(kindergartens.sf)
+st_crs(parks.sf)
+st_crs(library.sf)
+st_crs(dengue.sf)
+st_crs(sport.sf)
+```
+
+#### Sourced
+
+```{r}
+st_crs(busstop.sf)
+st_crs(shoppingmall.sf)
+st_crs(supermarket.sf)
+```
+:::
+
+## EDA
+
+To create: EDA plot for facilities: group into healthcare, recreational, transport, education
+
+```{r}
+tmap_mode("plot")
+tm_shape(mpsz.sf) +
+  tm_borders(alpha = 0.5) +
+  tmap_options(check.and.fix = TRUE) +
+tm_shape(busstop.sf) +
+  tm_dots(col="red", size=0.05) +
+  tm_layout(main.title = "Bus Stops",
+          main.title.position = "center",
+          main.title.size = 1.2,
+          frame = TRUE)
+```
+
+## Structural Factors
+
+### Floor Level
+
+1.  Identifying the unique ranges in story
+
+```{r}
+unique(resale$storey_range)
+```
+
+2.  Use pivot longer to create dummy variables
+
+```{r}
+resale <- resale %>%
+  pivot_wider(names_from = storey_range, values_from = storey_range, 
+              values_fn = list(storey_range = ~1), values_fill = 0)
+```
+
+### Remaining lease
+
+```{r}
+str_list <- str_split(resale$remaining_lease, " ")
+
+for (i in 1:length(str_list)) {
+  if (length(unlist(str_list[i])) > 2) {
+      year <- as.numeric(unlist(str_list[i])[1])
+      month <- as.numeric(unlist(str_list[i])[3])
+      resale$remaining_lease[i] <- year + round(month/12, 2)
+  }
+  else {
+    year <- as.numeric(unlist(str_list[i])[1])
+    resale$remaining_lease[i] <- year
+  }
+}
+```
+
+## Locational Factors
+
+We need to factor in the proximity to CBD in the downtown core. As such let's take the coordinates of Downtown Core to be the coordinates of the CBD
+
+```{r}
+lat <- 1.287953
+lng <- 103.851784
+
+cbd.sf <- data.frame(lat, lng) %>%
+  st_as_sf(coords = c("lng", "lat"), crs=4326) %>%
+  st_transform(crs=3414)
+```
+
+## Proximity Distance Calculation
+
+### Converting resale df into sf object
+
+```{r}
+resale.sf <- st_as_sf(resale, 
+                      coords = c("LONGITUDE", 
+                                 "LATITUDE"), 
+                      crs=4326) %>%
+  #afterwards, we transform it to SVY21, our desired CRS
+  st_transform(crs = 3414)
+```
+
+One of the things we need to find is the proximity to particular facilities - which we can compute with st_distance(), and find the closest facility (shortest distance) with the rowMins() function of our matrixStats package. The values will be appended to the data frame as a new column.
+
+```{r}
+library(units)
+library(matrixStats)
+proximity <- function(df1, df2, varname) {
+  dist_matrix <- st_distance(df1, df2) |> 
+    drop_units()
+  df1[,varname] <- rowMins(dist_matrix)
+  return(df1)
+}
+```
+
+Implementation of function
+
+```{r}
+resale.sf <- 
+  proximity(resale.sf, cbd.sf, "PROX_CBD")
+
+resale.sf <- 
+  proximity(resale.sf, eldercare.sf, "PROX_ELDERCARE")
+
+resale.sf <- 
+  proximity(resale.sf, hawkercentre.sf, "PROX_HAWKERCENTRE")
+
+resale.sf <- 
+  proximity(resale.sf, childcare.sf, "PROX_CHILDCARE")
+
+resale.sf <- 
+  proximity(resale.sf, kindergartens.sf, "PROX_KINDERGARTEN")
+
+resale.sf <- 
+  proximity(resale.sf, parks.sf, "PROX_PARK")
+
+resale.sf <- 
+  proximity(resale.sf, library.sf, "PROX_LIBRARY")
+
+resale.sf <- 
+  proximity(resale.sf, dengue.sf, "PROX_DENGUE")
+
+resale.sf <- 
+  proximity(resale.sf, sport.sf, "PROX_SPORT")
+
+resale.sf <- 
+  proximity(resale.sf, busstop.sf, "PROX_BUSSTOP")
+
+resale.sf <- 
+  proximity(resale.sf, shoppingmall.sf, "PROX_SHOPPINGMALL")
+
+resale.sf <- 
+  proximity(resale.sf, supermarket.sf, "PROX_SUPERMARKET")
+```
+
+## Facility Count within radius calculation
+
+Besides proximity, which calculates the shortest distance, we also want to find the number of facilities within a particular radius.
+
+```{r}
+num_radius <- function(df1, df2, varname, radius) {
+  dist_matrix <- st_distance(df1, df2) %>%
+    drop_units() %>%
+    as.data.frame()
+  df1[,varname] <- rowSums(dist_matrix <= radius)
+  return(df1)
+}
+```
+
+Implementation
+
+```{r}
+resale.sf <- 
+  num_radius(resale.sf, busstop.sf, "NUM_BUSSTOP", 350)
+  
+resale.sf <-
+  num_radius(resale.sf, childcare.sf, "NUM_CHILDCARE", 350)
+
+resale.sf <-
+  num_radius(resale.sf, kindergartens.sf, "NUM_KINDERGARTEN", 350)
+```
+
+## Saving Resale.sf as a shapefile
+
+This is for easy reference
+
+```{r}
+resale.sf<- resale.sf |> 
+  mutate() |> 
+  rename("AREA_SQM" = "floor_area_sqm", 
+         "LEASE_YRS" = "remaining_lease", 
+         "PRICE"= "resale_price") |> 
+  relocate(`PRICE`)
+
+resale.sf
+```
+
+We can now save the final shape file
+
+```{r eval=FALSE}
+st_write(resale.sf, "data/geospatial/resale-final.shp", append=FALSE)
+```
