@@ -130,8 +130,11 @@ Our geospatial data can be split into several categories
 |             |                         | 4.  kindergartens                                    |                                                       |
 |             |                         | 5.  parks                                            | 3.  supermarket                                       |
 |             |                         | 6.  libraries                                        |                                                       |
-|             |                         | 7.  dengue clusters                                  |                                                       |
+|             |                         | 7.  dengue clusters                                  | 4.  mrt                                               |
 |             |                         | 8.  sport facilities                                 |                                                       |
+|             |                         |                                                      | 5.  primary school                                    |
+|             |                         |                                                      |                                                       |
+|             |                         |                                                      | 6.  secondary school                                  |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
 
 ::: panel-tabset
@@ -293,6 +296,48 @@ st_write(obj = mall.sf,
 ```
 
 3.  Supermarkets extracted data from: [Onemap.gov](https://www.onemap.gov.sg/main/v2/essentialamenities)
+
+4.  MRT data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
+
+5.  Primary School data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
+
+6.  Secondary school data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
+
+```{r eval = FALSE}
+mrt.df<- read.csv("data/geospatial/sourced/mrtsg.csv") |> 
+  select(STN_NAME, Latitude, Longitude) 
+
+mrt.sf <- st_as_sf(mrt.df, coords=c("Longitude", "Latitude"), crs=4326)
+
+st_write(obj = mrt.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "mrt",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+primarysch.df<- read.csv("data/geospatial/sourced/primaryschoolsg.csv") |> 
+  select(Name, Latitude, Longitude) 
+
+primarysch.sf <- st_as_sf(primarysch.df, coords=c("Longitude", "Latitude"), crs=4326)
+
+st_write(obj = primarysch.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "primarysch",
+         driver = "ESRI Shapefile")
+```
+
+```{r eval = FALSE}
+secsch.df<- read.csv("data/geospatial/sourced/secsch_cleaned.csv") |> 
+  select(SCHNAME, latitude, longitude) 
+
+secsch.sf <- st_as_sf(secsch.df, coords=c("longitude", "latitude"), crs=4326)
+
+st_write(obj = secsch.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "secsch",
+         driver = "ESRI Shapefile")
+```
 :::
 
 ## Reading collected geospatial data into R
@@ -332,6 +377,9 @@ sport.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "sportsg_sport_fa
 busstop.sf <- st_read(dsn = "data/geospatial/sourced", layer = "BusStop")
 shoppingmall.sf<-st_read(dsn = "data/geospatial/sourced", layer = "shoppingmall")
 supermarket.sf<-st_read(dsn = "data/geospatial/sourced", layer = "SUPERMARKETS")
+mrt.sf<-st_read(dsn = "data/geospatial/sourced", layer = "mrt")
+primarysch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "primarysch")
+secsch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "secsch")
 ```
 :::
 
@@ -361,6 +409,12 @@ shoppingmall.sf<-select(shoppingmall.sf, 1)
 busstop.sf<-select(busstop.sf, 1)
 
 supermarket.sf<- select(supermarket.sf, 1)
+
+primarysch.sf<-select(primarysch.sf, 1)
+
+secsch.sf<-select(secsch.sf, 1)
+
+mrt.sf<-select(mrt.sf, 1)
 ```
 
 #### **Check for invalid geometries**
@@ -388,6 +442,12 @@ length(which(st_is_valid(shoppingmall.sf) == FALSE))
 
 length(which(st_is_valid(supermarket.sf) == FALSE))
 
+length(which(st_is_valid(primarysch.sf) == FALSE))
+
+length(which(st_is_valid(secsch.sf) == FALSE))
+
+length(which(st_is_valid(mrt.sf) == FALSE))
+
 length(which(st_is_valid(mpsz.sf) == FALSE))
 ```
 
@@ -398,7 +458,7 @@ mpsz.sf <- st_make_valid(mpsz.sf)
 length(which(st_is_valid(mpsz.sf) == FALSE))
 ```
 
-#### **Check for missing values**
+#### **Check for missing values** 
 
 ```{r}
 eldercare.sf[rowSums(is.na(eldercare.sf))!=0,]
@@ -444,6 +504,18 @@ shoppingmall.sf[rowSums(is.na(shoppingmall.sf))!=0,]
 supermarket.sf[rowSums(is.na(supermarket.sf))!=0,]
 ```
 
+```{r}
+secsch.sf[rowSums(is.na(secsch.sf))!=0,]
+```
+
+```{r}
+primarysch.sf[rowSums(is.na(primarysch.sf))!=0,]
+```
+
+```{r}
+mrt.sf[rowSums(is.na(mrt.sf))!=0,]
+```
+
 ## Verifying + Transforming Coordinate system
 
 ::: panel-tabset
@@ -472,6 +544,9 @@ st_crs(sport.sf)
 st_crs(busstop.sf)
 st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
+st_crs(primarysch.sf)
+st_crs(secsch.sf)
+st_crs(mrt.sf)
 ```
 
 Note: our projected CRS should be SVY21 (EPSG code 3414). However, some of the extracted data sets are in WGS84, and others are in SVY21 with the incorrect EPSG code (EPSG 9001)
@@ -494,6 +569,9 @@ library.sf<-st_transform(library.sf, crs=3414)
 dengue.sf<-st_transform(dengue.sf, crs=3414)
 sport.sf<-st_transform(sport.sf, crs=3414)
 shoppingmall.sf<-st_transform(shoppingmall.sf, crs=3414)
+primarysch.sf<-st_transform(primarysch.sf, crs=3414)
+secsch.sf<-st_transform(secsch.sf, crs=3414)
+mrt.sf<-st_transform(mrt.sf, crs=3414)
 ```
 
 ## Checking crs
@@ -524,6 +602,9 @@ st_crs(sport.sf)
 st_crs(busstop.sf)
 st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
+st_crs(primarysch.sf)
+st_crs(secsch.sf)
+st_crs(mrt.sf)
 ```
 :::
 
@@ -657,6 +738,15 @@ resale.sf <-
 
 resale.sf <- 
   proximity(resale.sf, supermarket.sf, "PROX_SUPERMARKET")
+
+resale.sf <- 
+  proximity(resale.sf, primarysch.sf, "PROX_PRIMARYSCH")
+
+resale.sf <- 
+  proximity(resale.sf, secsch.sf, "PROX_SECSCH")
+
+resale.sf <- 
+  proximity(resale.sf, mrt.sf, "PROX_MRT")
 ```
 
 ## Facility Count within radius calculation
@@ -684,6 +774,9 @@ resale.sf <-
 
 resale.sf <-
   num_radius(resale.sf, kindergartens.sf, "NUM_KINDERGARTEN", 350)
+
+resale.sf <-
+  num_radius(resale.sf, primarysch.sf, "NUM_PRIMARYSCH", 1000)
 ```
 
 ## Saving Resale.sf as a shapefile
@@ -703,6 +796,6 @@ resale.sf
 
 We can now save the final shape file
 
-```{r eval=FALSE}
+```{r eval=TRUE}
 st_write(resale.sf, "data/geospatial/resale-final.shp", append=FALSE)
 ```
