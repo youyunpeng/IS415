@@ -34,7 +34,7 @@ themetibble <- get_theme(token, "themename")
 themesf <- st_as_sf(themetibble, coords=c("Lng", "Lat"), crs=4326)
 ```
 
-```{r}
+```{r echo=FALSE}
 library(onemapsgapi)
 token <- get_token("pengyouyun@gmail.com", "Learning@2015")
 childcare<-get_theme(token,"childcare")
@@ -58,7 +58,7 @@ head(resale,5)
 # 4-room flats 
 resale <- resale %>% 
   filter(flat_type == "4 ROOM") %>%
-  filter(month >= "2021-01" & month < "2022-12")
+  filter(month >= "2021-01" & month <= "2022-12")
 ```
 
 ```{r eval = FALSE}
@@ -106,7 +106,7 @@ for (i in 1:nrow(resale)){
 ### figure how to move this into aspatial file
 
 ```{r eval = FALSE}
-saveRDS(resale, file="resale", compress=FALSE)
+saveRDS(resale, file="resale", compress=FALSE, append=FALSE)
 ```
 
 now we can read the resale file easily
@@ -124,7 +124,7 @@ Our geospatial data can be split into several categories
 +=============+=========================+======================================================+=======================================================+
 | Description | geographical boundaries | Independent variable data extracted using OneMap API | Independent variable data extracted from the internet |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
-| Layer names | 1.  mpsz                | 1.  childcare                                        | 1.  bus stop                                          |
+| Layer names | 1.  MPSZ-2019           | 1.  childcare                                        | 1.  bus stop                                          |
 |             |                         | 2.  elder care                                       |                                                       |
 |             |                         | 3.  hawker centre                                    | 2.  shopping mall                                     |
 |             |                         | 4.  kindergartens                                    |                                                       |
@@ -134,7 +134,9 @@ Our geospatial data can be split into several categories
 |             |                         | 8.  sport facilities                                 |                                                       |
 |             |                         |                                                      | 5.  primary school                                    |
 |             |                         |                                                      |                                                       |
-|             |                         |                                                      | 6.  secondary school                                  |
+|             |                         |                                                      | 6.  good primary school                               |
+|             |                         |                                                      |                                                       |
+|             |                         |                                                      | 7.  secondary school                                  |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
 
 ::: panel-tabset
@@ -338,6 +340,87 @@ st_write(obj = secsch.sf,
          layer = "secsch",
          driver = "ESRI Shapefile")
 ```
+
+Primary school and mrt data attempt 2
+
+Primary school data extracted from [data.gov](https://data.gov.sg/dataset/school-directory-and-information)
+
+```{r eval=FALSE}
+primarysch.df<- read.csv("data/geospatial/sourced/general-information-of-schools.csv") |> 
+  dplyr::filter(mainlevel_code=="PRIMARY") |> 
+  dplyr::select(school_name, postal_code) |> 
+  dplyr::mutate(postal_code=ifelse(nchar(as.character(postal_code)) == 5, 
+                             paste0("0", as.character(postal_code)), 
+                             as.character(postal_code)))
+
+#use onemap api
+library(httr)
+library(rjson)
+geocode.data.gov <- function(postalcode) {
+  base_url <- "https://developers.onemap.sg/commonapi/search"
+  query <- list("searchVal" = postalcode, 
+                "returnGeom" = "Y",
+                "getAddrDetails" = "N",
+                "pageNum" = "1")
+  
+  res <- GET(base_url, query = query)
+  restext<-content(res, as="text")
+  
+  output <- fromJSON(restext) |>  
+    as.data.frame() |> 
+    dplyr::select(results.LATITUDE, results.LONGITUDE)
+
+  return(output)
+}
+
+#create loop to run data through
+primarysch.df$LATITUDE <- 0
+primarysch.df$LONGITUDE <- 0
+
+for (i in 1:nrow(primarysch.df)){
+  temp_output <- geocode.data.gov(primarysch.df[i, 2])
+  
+  primarysch.df$LATITUDE[i] <- temp_output$results.LATITUDE
+  primarysch.df$LONGITUDE[i] <- temp_output$results.LONGITUDE
+}
+
+primarysch.sf <- st_as_sf(primarysch.df, coords=c("LONGITUDE", "LATITUDE"), crs=4326)
+
+st_write(obj = primarysch.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "primarysch",
+         driver = "ESRI Shapefile")
+
+```
+
+Good primary school
+
+Based on the rankings of [this website](https://schlah.com/primary-schools), we take the first 10 schools
+
+```{r eval=FALSE}
+primarysch.sf <- st_read(dsn = "data/geospatial/sourced", layer = "primarysch")
+goodprimarysch.sf <- primarysch.sf |> 
+  filter(school_name %in% c("NANYANG PRIMARY SCHOOL",
+                            "TAO NAN SCHOOL",
+                            "CANOSSA CATHOLIC PRIMARY SCHOOL",
+                            "NAN HUA PRIMARY SCHOOL",
+                            "ST. HILDA'S PRIMARY SCHOOL",
+                            "HENRY PARK PRIMARY SCHOOL",
+                            "ANGLO-CHINESE SCHOOL (PRIMARY)",
+                            "RAFFLES GIRLS' PRIMARY SCHOOL",
+                            "PEI HWA PRESBYTERIAN PRIMARY SCHOOL"
+                            ))
+
+st_write(obj = goodprimarysch.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "goodprimarysch",
+         driver = "ESRI Shapefile")
+```
+
+```{r}
+mrt.sf<-st_read(dsn= "data/geospatial/sourced", 
+             layer="RapidTransitSystemStation")
+```
 :::
 
 ## Reading collected geospatial data into R
@@ -348,7 +431,7 @@ st_write(obj = secsch.sf,
 1.  reading mpsz
 
 ```{r}
-mpsz.sf <- st_read(dsn = "data/geospatial/base", layer = "MP14_SUBZONE_WEB_PL")
+mpsz.sf <- st_read(dsn = "data/geospatial/base", layer = "MPSZ-2019")
 ```
 
 2.  reading boundary data (error)
@@ -379,7 +462,10 @@ shoppingmall.sf<-st_read(dsn = "data/geospatial/sourced", layer = "shoppingmall"
 supermarket.sf<-st_read(dsn = "data/geospatial/sourced", layer = "SUPERMARKETS")
 mrt.sf<-st_read(dsn = "data/geospatial/sourced", layer = "mrt")
 primarysch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "primarysch")
+goodprimarysch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "goodprimarysch")
 secsch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "secsch")
+mrt.sf<-st_read(dsn= "data/geospatial/sourced", 
+             layer="RapidTransitSystemStation")
 ```
 :::
 
@@ -411,6 +497,8 @@ busstop.sf<-select(busstop.sf, 1)
 supermarket.sf<- select(supermarket.sf, 1)
 
 primarysch.sf<-select(primarysch.sf, 1)
+
+goodprimarysch.sf<-select(goodprimarysch.sf, 1)
 
 secsch.sf<-select(secsch.sf, 1)
 
@@ -444,6 +532,8 @@ length(which(st_is_valid(supermarket.sf) == FALSE))
 
 length(which(st_is_valid(primarysch.sf) == FALSE))
 
+length(which(st_is_valid(goodprimarysch.sf) == FALSE))
+
 length(which(st_is_valid(secsch.sf) == FALSE))
 
 length(which(st_is_valid(mrt.sf) == FALSE))
@@ -451,14 +541,23 @@ length(which(st_is_valid(mrt.sf) == FALSE))
 length(which(st_is_valid(mpsz.sf) == FALSE))
 ```
 
-We see that mpsz has 9 invalid geometries. Lets address them and check again
+We see that mpsz has 6 invalid geometries. Lets address them and check again
 
 ```{r}
 mpsz.sf <- st_make_valid(mpsz.sf)
 length(which(st_is_valid(mpsz.sf) == FALSE))
 ```
 
-#### **Check for missing values** 
+Mrt.sf also has 2 invalid geometries. Lets address them and check again
+
+```{r}
+mrt.sf <- mrt.sf |> 
+  st_cast("MULTIPOLYGON") |> 
+  st_make_valid()
+length(which(st_is_valid(mrt.sf) == FALSE))
+```
+
+#### **Check for missing values**
 
 ```{r}
 eldercare.sf[rowSums(is.na(eldercare.sf))!=0,]
@@ -513,6 +612,10 @@ primarysch.sf[rowSums(is.na(primarysch.sf))!=0,]
 ```
 
 ```{r}
+goodprimarysch.sf[rowSums(is.na(goodprimarysch.sf))!=0,]
+```
+
+```{r}
 mrt.sf[rowSums(is.na(mrt.sf))!=0,]
 ```
 
@@ -545,6 +648,7 @@ st_crs(busstop.sf)
 st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
 st_crs(primarysch.sf)
+st_crs(goodprimarysch.sf)
 st_crs(secsch.sf)
 st_crs(mrt.sf)
 ```
@@ -570,6 +674,7 @@ dengue.sf<-st_transform(dengue.sf, crs=3414)
 sport.sf<-st_transform(sport.sf, crs=3414)
 shoppingmall.sf<-st_transform(shoppingmall.sf, crs=3414)
 primarysch.sf<-st_transform(primarysch.sf, crs=3414)
+goodprimarysch.sf<-st_transform(goodprimarysch.sf, crs=3414)
 secsch.sf<-st_transform(secsch.sf, crs=3414)
 mrt.sf<-st_transform(mrt.sf, crs=3414)
 ```
@@ -603,6 +708,7 @@ st_crs(busstop.sf)
 st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
 st_crs(primarysch.sf)
+st_crs(goodprimarysch.sf)
 st_crs(secsch.sf)
 st_crs(mrt.sf)
 ```
@@ -610,20 +716,77 @@ st_crs(mrt.sf)
 
 ## EDA
 
-To create: EDA plot for facilities: group into healthcare, recreational, transport, education
+Plots for sf data frames
+
+::: panel-tabset
+### Transportation
 
 ```{r}
+#transport graph
 tmap_mode("plot")
 tm_shape(mpsz.sf) +
   tm_borders(alpha = 0.5) +
   tmap_options(check.and.fix = TRUE) +
 tm_shape(busstop.sf) +
-  tm_dots(col="red", size=0.05) +
-  tm_layout(main.title = "Bus Stops",
+  tm_dots(col="red", size=0.05, alpha=0.5) +
+tm_shape(mrt.sf) +
+  tm_polygons(col="green", alpha=1)+
+  tm_layout(main.title = "Transportation",
           main.title.position = "center",
           main.title.size = 1.2,
           frame = TRUE)
 ```
+
+### Education
+
+```{r}
+#education
+tmap_mode("plot")
+tm_shape(mpsz.sf) +
+  tm_borders(alpha = 0.5) +
+  tmap_options(check.and.fix = TRUE) +
+tm_shape(primarysch.sf) +
+  tm_dots(col="pink", size=0.05, alpha=0.5) +
+tm_shape(goodprimarysch.sf) +
+  tm_dots(col="red", size=0.05, alpha=1) +
+tm_shape(kindergartens.sf) +
+  tm_dots(col="purple", size=0.05, alpha=0.5) +
+tm_shape(childcare.sf) +
+  tm_dots(col="yellow", size=0.05, alpha=0.2) +
+  tm_layout(main.title = "Education",
+          main.title.position = "center",
+          main.title.size = 1.2,
+          frame = TRUE)
+```
+
+### Amenities
+
+```{r}
+#ammenities
+tmap_mode("plot")
+tm_shape(mpsz.sf) +
+  tm_borders(alpha = 0.5) +
+  tmap_options(check.and.fix = TRUE) +
+tm_shape(parks.sf) +
+  tm_dots(col="green", size=0.05, alpha=0.5) +
+tm_shape(hawkercentre.sf) +
+  tm_dots(col="blue", size=0.05, alpha=0.5) +
+tm_shape(library.sf) +
+  tm_dots(col="red", size=0.05, alpha=0.5) +
+tm_shape(sport.sf) +
+  tm_dots(col="grey", size=0.05, alpha=0.2) +
+tm_shape(shoppingmall.sf) +
+  tm_dots(col="purple", size=0.05, alpha=0.2) +
+tm_shape(supermarket.sf) +
+  tm_dots(col="brown", size=0.05, alpha=0.2) +
+tm_shape(eldercare.sf) +
+  tm_dots(col="navy", size=0.05, alpha=0.2) +
+  tm_layout(main.title = "Ammenities",
+          main.title.position = "center",
+          main.title.size = 1.2,
+          frame = TRUE)
+```
+:::
 
 ## Structural Factors
 
@@ -741,6 +904,9 @@ resale.sf <-
 
 resale.sf <- 
   proximity(resale.sf, primarysch.sf, "PROX_PRIMARYSCH")
+
+resale.sf <- 
+  proximity(resale.sf, goodprimarysch.sf, "PROX_GOODPRIMARYSCH")
 
 resale.sf <- 
   proximity(resale.sf, secsch.sf, "PROX_SECSCH")
