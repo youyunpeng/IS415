@@ -18,10 +18,61 @@ In this take-home exercise, you are tasked to predict HDB resale prices at the s
 ## Installing packages
 
 ```{r}
-pacman::p_load(olsrr, corrplot, ggpubr, sf, spdep, GWmodel, tmap, tidyverse, gtsummary, sfdep, onemapsgapi, stringr)
+pacman::p_load(olsrr, corrplot, ggpubr, sf, spdep, GWmodel, tmap, tidyverse, gtsummary, sfdep, onemapsgapi, stringr, SpatialML, devtools, tidymodels, kableExtra)
 ```
 
-OneMapAPI: usage
+The uses of each package installed can be found below:
+
+::: panel-tabset
+### Data Collection
+
+-   kableExtra: an extension of kable, used for table customisation
+
+-   onemapsgapi: used to query Singapore-specifif spatial data, alongside additional functionalities
+
+-   httr: used to make API calls, such as GET requests
+
+### Data Wrangling
+
+-   sf: used for importing, managing and processing geospatial data
+
+-   spdep: used to create spatial weight matrix objects, global and local spatial autocorrelation statistics and related calculations
+
+-   sfdep: builds on spdep to create sn sf and tidyverse friendly interface to the package
+
+-   tidyverse: collection of R packages designed for data wrangling
+
+-   stringr: provides a cohesive set of functions designed to make working with strings easily
+
+### Data Visualisation
+
+-   tmap: used for creating thematic maps, such as chloropleth and bubble maps
+
+### Regressions
+
+-   olsrr: used for building least square regression models
+
+-   corrplot + ggpubr: Used for multivariate data visualisation and analysis
+
+-   GWmodel: provides a collection of localised spatial statistical methods such as summary statistic, principal components analysis, discriminant analysis and various forms of GW regression
+
+-   gtsummary: provides an elegant and flexible way to create publication-ready analytical and summary tables using the **R** programming language
+
+-   devtools: used for installing any R packages which is not available in RCRAN
+
+-   SpatialML: allows for a geographically weighted random forest regression to include a function to find the optimal bandwidth
+:::
+
+### OneMapAPI: usage
+
+In this exercise, the collection of the coordinate data of singapore-specific places can tap on the database implemented by [OneMapSg](https://www.onemap.gov.sg/main/v2/).
+
+Referencing one of our senior [Megan's](https://is415-msty.netlify.app/posts/2021-10-25-take-home-exercise-3/) work, the steps to intialise this processes is as follows:
+
+1.  Make sure you have your token value after signing up for a OneMapSG account
+2.  Search for the specified theme with search_themes(token, "searchval").
+3.  Check the theme status with get_theme_status(token, "themename")
+4.  From here, we can convert our tibble dataframe to simple features dataframe. All the themes for this project use Lat and Lng as the latitude and longitude respectively, and our project coordinates system should be in the WGS84 system, aka ESPG code 4326. Thus, `themesf <- st_as_sf(themetibble, coords=c("Lng", "Lat"), crs=4326)`
 
 ```{r eval = FALSE}
 library(sf)
@@ -42,30 +93,135 @@ themes<-search_themes(token)
 themes
 ```
 
-## Aspatial data
+With that in mind, lets move on to data collection!
 
-reading csv file
+## Data Collection
+
+The following data would be used for the formation of our regression
+
+```{r}
+# initialise a dataframe of our aspatial and geospatial dataset details
+datasets <- data.frame(
+  Type=c("Aspatial",
+         "Geospatial",
+         
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         "Geospatial - Extracted",
+         
+         "Geospatial - Selfsourced",
+         "Geospatial - Selfsourced",
+         "Geospatial - Selfsourced",
+         "Geospatial - Selfsourced",
+         "Geospatial - Selfsourced"),
+  
+  Name=c("Resale Flat Prices",
+         "Master Plan 2019 Subzone Boundary (Web)",
+         
+         "Childcare Services",
+         "Eldercare Services",
+         "Hawker Centres",
+         "Kindergartens",
+         "Parks",
+         "Libraries",
+         "Sport Facilities",
+         
+         "Bus Stop Locations Aug 2021",
+         "MRT & LRT Locations Aug 2021",
+         "Supermarkets",
+         "Shopping Mall SVY21 Coordinates", 
+         "Primary School"),
+  
+  Format=c(".csv", 
+           ".shp",
+           
+           ".shp", 
+           ".shp", 
+           ".shp", 
+           ".shp",
+           ".shp", 
+           ".shp",
+           ".shp",
+           
+           ".shp",
+           ".kml",
+           ".shp",
+           ".shp",
+           ".csv"),
+  
+  Source=c("[data.gov.sg](https://data.gov.sg/dataset/resale-flat-prices)",
+           "[data.gov.sg](https://data.gov.sg/dataset/master-plan-2014-subzone-boundary-web)",
+           
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           "[OneMap API](https://www.onemap.gov.sg/docs/)",
+           
+           "[datamall.lta](https://datamall.lta.gov.sg/content/datamall/en/search_datasets.html?searchText=bus%20stop)",
+           "[data.gov](https://data.gov.sg/dataset/lta-mrt-station-exit)",
+           "[Onemap.gov](https://www.onemap.gov.sg/main/v2/essentialamenities)",
+           "[Valery Lim's Github](https://github.com/ValaryLim/Mall-Coordinates-Web-Scraper/blob/master/mall_coordinates_updated.csv)",
+           "[data.gov](https://data.gov.sg/dataset/school-directory-and-information)")
+  )
+
+library(knitr)
+library(kableExtra)
+kable(datasets, caption="Datasets Used") %>%
+  kable_material("hover", latex_options="scale_down")
+
+```
+
+### Aspatial data
+
+For the purpose of this take-home exercise, [`HDB Resale Flat Prices`](https://data.gov.sg/dataset/resale-flat-prices) provided by Data.gov.sg should be used as the core data set.
+
+The code chunk below reads the csv file into our R environment.
 
 ```{r eval = FALSE}
 resale<-read_csv("data/aspatial/resale-flat-prices-based-on-registration-date-from-jan-2017-onwards.csv")
 head(resale,5)
 ```
 
-### Filtering to include transactional periods
+#### Filtering to include transactional periods
+
+The study should focus on either three-room, four-room or five-room flat and transaction period should be from 1st January 2021 to 31st December 2022. The test data should be January and February 2023 resale prices.
+
+Therefore, we filter the dataset to include transactions occuring from Jan 2021 to Feb 2023.
 
 ```{r eval = FALSE}
-# transaction period from 01-Jan-19 to 30-Sep-20
+# transaction period from 01-Jan-21 to 31-Feb-23
 # 4-room flats 
 resale <- resale %>% 
   filter(flat_type == "4 ROOM") %>%
-  filter(month >= "2021-01" & month <= "2022-12")
+  filter(month >= "2021-01" & month <= "2022-12" | month >= "2023-01" & month <= "2023-02")
 ```
 
 ```{r eval = FALSE}
 resale$street_name <- gsub("ST\\.", "SAINT", resale$street_name)
 ```
 
-### Creating function to get longitude and lattitude
+#### Creating function to get longitude and lattitude
+
+Notice that the data provided in the resale flat data does not include coordinates! We need to create our own geocoding function. With reference to our senior Megan's work once again, these are the steps required in creating a geocoding function
+
+1.  Combine the block and street name into an address
+
+2.  Pass the address as the searchVal in our query
+
+3.  Send the query to OneMapSG search *Note: Since we don\'t need all the address details, we can set `getAddrDetails` as \'N\'*
+
+4.  Convert response (JSON object) to text
+
+5.  Save response in text form as a dataframe
+
+6.  We only need to retain the latitude and longitude for our output
 
 ```{r eval = FALSE}
 library(httr)
@@ -89,7 +245,9 @@ geocode <- function(block, streetname) {
 }
 ```
 
-### passing code through resale df
+#### Passing code through resale df
+
+With our function in place, we then create a loop to implement the geocoding function through our transaction data.
 
 ```{r eval = FALSE}
 resale$LATITUDE <- 0
@@ -103,10 +261,12 @@ for (i in 1:nrow(resale)){
 }
 ```
 
-### figure how to move this into aspatial file
+#### Save as an RDS object
+
+Especially given the extensive dataframe, this would take quite long to load! to avoid having to reload the output again, we save this as a RDS object.
 
 ```{r eval = FALSE}
-saveRDS(resale, file="resale", compress=FALSE, append=FALSE)
+saveRDS(resale, file="resale", compress=FALSE)
 ```
 
 now we can read the resale file easily
@@ -115,7 +275,7 @@ now we can read the resale file easily
 resale<-readRDS("resale")
 ```
 
-## Geospatial Data
+### Geospatial Data
 
 Our geospatial data can be split into several categories
 
@@ -124,23 +284,25 @@ Our geospatial data can be split into several categories
 +=============+=========================+======================================================+=======================================================+
 | Description | geographical boundaries | Independent variable data extracted using OneMap API | Independent variable data extracted from the internet |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
-| Layer names | 1.  MPSZ-2019           | 1.  childcare                                        | 1.  bus stop                                          |
-|             |                         | 2.  elder care                                       |                                                       |
-|             |                         | 3.  hawker centre                                    | 2.  shopping mall                                     |
-|             |                         | 4.  kindergartens                                    |                                                       |
-|             |                         | 5.  parks                                            | 3.  supermarket                                       |
-|             |                         | 6.  libraries                                        |                                                       |
-|             |                         | 7.  dengue clusters                                  | 4.  mrt                                               |
-|             |                         | 8.  sport facilities                                 |                                                       |
-|             |                         |                                                      | 5.  primary school                                    |
+| Layer names | 1.  MPSZ-2019           | childcare                                            | 1.  bus stop                                          |
 |             |                         |                                                      |                                                       |
-|             |                         |                                                      | 6.  good primary school                               |
+|             |                         | elder care                                           | 2.  shopping mall                                     |
 |             |                         |                                                      |                                                       |
-|             |                         |                                                      | 7.  secondary school                                  |
+|             |                         | hawker centre                                        | 3.  supermarket                                       |
+|             |                         |                                                      |                                                       |
+|             |                         | kindergartens                                        | 4.  mrt                                               |
+|             |                         |                                                      |                                                       |
+|             |                         | parks                                                | 5.  primary school                                    |
+|             |                         |                                                      |                                                       |
+|             |                         | libraries                                            | 6.  good primary school                               |
+|             |                         |                                                      |                                                       |
+|             |                         | sport facilities                                     |                                                       |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
 
+Feel free to explore the codes we used to extract the data in the different panels below!
+
 ::: panel-tabset
-### Extracted
+#### Extracted
 
 ```{r eval = FALSE}
 library(sf)
@@ -217,19 +379,17 @@ st_write(obj = library.sf,
          driver = "ESRI Shapefile")
 ```
 
-Extracting dengue cluster and sports facility data:
+Extracting and sports facility data:
 
 ```{r eval=FALSE}
-dengue<-get_theme(token,"dengue_cluster")
 sport<-get_theme(token,"sportsg_sport_facilities")
 
-dengue
 sport
 ```
 
 ![](images/Screenshot%202023-03-11%20at%205.46.23%20PM.png)
 
-When we browse the dengue and sports data, we see that the lat and lng columns are not configured in the way we expect it to be. In the Lng column, the longitude of the location is first placed followed by a "\|" and then the latitude of the location.
+When we browse the sports data, we see that the lat and lng columns are not configured in the way we expect it to be. In the Lng column, the longitude of the location is first placed followed by a "\|" and then the latitude of the location.
 
 Notice that the Lng and Lat are not in the format we want. We create a function to extract the Lng numbers from the string, using str_extract from the package stringr.
 
@@ -249,21 +409,7 @@ lng.mutate<-function(df){
 ```
 
 ```{r eval = FALSE}
-# extracting dengue data as an sf object into R
-dengue<-get_theme(token,"dengue_cluster")
-dengue<-lng.mutate(dengue)
-
-dengue.sf <- st_as_sf(dengue, coords=c("Lng", "Lat"), crs=4326)
-
-# creating a saved sf object in data file for easy reference
-st_write(obj = dengue.sf,
-         dsn = "data/geospatial/extracted",
-         layer = "dengue_cluster",
-         driver = "ESRI Shapefile")
-```
-
-```{r eval = FALSE}
-# extracting dengue data as an sf object into R
+# extracting sports data as an sf object into R
 sport<-get_theme(token,"sportsg_sport_facilities")
 sport<-lng.mutate(sport)
 
@@ -276,11 +422,13 @@ st_write(obj = sport.sf,
          driver = "ESRI Shapefile")
 ```
 
-### Sourced
+#### Sourced
 
 1.  Bus stop data Extracted from: [datamall.lta](https://datamall.lta.gov.sg/content/datamall/en/search_datasets.html?searchText=bus%20stop)
 
-2.  Shopping mall data Extracted from: <https://github.com/ValaryLim/Mall-Coordinates-Web-Scraper/blob/master/mall_coordinates_updated.csv>
+2.  Supermarkets extracted data from: [Onemap.gov](https://www.onemap.gov.sg/main/v2/essentialamenities)
+
+3.  Shopping mall data Extracted from: [ValeryLim's Github](https://github.com/ValaryLim/Mall-Coordinates-Web-Scraper/blob/master/mall_coordinates_updated.csv)
 
 since it is in a csv file, we convert it into a shape file and save it into our extracted data file in the code chunk below
 
@@ -297,53 +445,9 @@ st_write(obj = mall.sf,
          driver = "ESRI Shapefile")
 ```
 
-3.  Supermarkets extracted data from: [Onemap.gov](https://www.onemap.gov.sg/main/v2/essentialamenities)
+4.  Primary school data extracted from [data.gov](https://data.gov.sg/dataset/school-directory-and-information)
 
-4.  MRT data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
-
-5.  Primary School data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
-
-6.  Secondary school data: [hxchua's github page](thub.com/hxchua/datadoubleconfirm/blob/master/datasets/mrtsg.csv)
-
-```{r eval = FALSE}
-mrt.df<- read.csv("data/geospatial/sourced/mrtsg.csv") |> 
-  select(STN_NAME, Latitude, Longitude) 
-
-mrt.sf <- st_as_sf(mrt.df, coords=c("Longitude", "Latitude"), crs=4326)
-
-st_write(obj = mrt.sf,
-         dsn = "data/geospatial/sourced",
-         layer = "mrt",
-         driver = "ESRI Shapefile")
-```
-
-```{r eval = FALSE}
-primarysch.df<- read.csv("data/geospatial/sourced/primaryschoolsg.csv") |> 
-  select(Name, Latitude, Longitude) 
-
-primarysch.sf <- st_as_sf(primarysch.df, coords=c("Longitude", "Latitude"), crs=4326)
-
-st_write(obj = primarysch.sf,
-         dsn = "data/geospatial/sourced",
-         layer = "primarysch",
-         driver = "ESRI Shapefile")
-```
-
-```{r eval = FALSE}
-secsch.df<- read.csv("data/geospatial/sourced/secsch_cleaned.csv") |> 
-  select(SCHNAME, latitude, longitude) 
-
-secsch.sf <- st_as_sf(secsch.df, coords=c("longitude", "latitude"), crs=4326)
-
-st_write(obj = secsch.sf,
-         dsn = "data/geospatial/sourced",
-         layer = "secsch",
-         driver = "ESRI Shapefile")
-```
-
-Primary school and mrt data attempt 2
-
-Primary school data extracted from [data.gov](https://data.gov.sg/dataset/school-directory-and-information)
+Since only postal code and address data is given, we use the OneMapAPI in the code below to obtain coordinates of the schools.
 
 ```{r eval=FALSE}
 primarysch.df<- read.csv("data/geospatial/sourced/general-information-of-schools.csv") |> 
@@ -393,7 +497,7 @@ st_write(obj = primarysch.sf,
 
 ```
 
-Good primary school
+5.  Good primary school - filtered from primarysch.sf
 
 Based on the rankings of [this website](https://schlah.com/primary-schools), we take the first 10 schools
 
@@ -417,31 +521,32 @@ st_write(obj = goodprimarysch.sf,
          driver = "ESRI Shapefile")
 ```
 
-```{r}
-mrt.sf<-st_read(dsn= "data/geospatial/sourced", 
-             layer="RapidTransitSystemStation")
+6.  Mrt data: retrieved from [data.gov](https://data.gov.sg/dataset/lta-mrt-station-exit)
+
+The data given to us is in ".kml" format, we convert it to an sf object.
+
+```{r eval=FALSE}
+mrt.sf<-st_read(dsn= "data/geospatial/sourced/lta-mrt-station-exit-kml.kml") |> 
+  st_zm()
+
+st_write(obj = mrt.sf,
+         dsn = "data/geospatial/sourced",
+         layer = "mrt",
+         driver = "ESRI Shapefile",
+         append = FALSE)
 ```
 :::
 
-## Reading collected geospatial data into R
+### Reading collected geospatial data into R
 
 ::: panel-tabset
-### Base
-
-1.  reading mpsz
+#### Base
 
 ```{r}
 mpsz.sf <- st_read(dsn = "data/geospatial/base", layer = "MPSZ-2019")
 ```
 
-2.  reading boundary data (error)
-
-```{r eval = FALSE}
-boundary.sf <- st_read(dsn = "data/geospatial/base", layer = "national-map-polygon-kml") |> 
-  st_as_sf()
-```
-
-### Extracted
+#### Extracted
 
 ```{r}
 eldercare.sf <- st_read(dsn = "data/geospatial/extracted", layer = "eldercare")
@@ -450,11 +555,10 @@ childcare.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "childcare")
 kindergartens.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "kindergartens")
 parks.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "parks")
 library.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "libraries")
-dengue.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "dengue_cluster")
 sport.sf<-  st_read(dsn = "data/geospatial/extracted", layer = "sportsg_sport_facilities")
 ```
 
-### Sourced
+#### Sourced
 
 ```{r}
 busstop.sf <- st_read(dsn = "data/geospatial/sourced", layer = "BusStop")
@@ -463,9 +567,6 @@ supermarket.sf<-st_read(dsn = "data/geospatial/sourced", layer = "SUPERMARKETS")
 mrt.sf<-st_read(dsn = "data/geospatial/sourced", layer = "mrt")
 primarysch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "primarysch")
 goodprimarysch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "goodprimarysch")
-secsch.sf<-st_read(dsn = "data/geospatial/sourced", layer = "secsch")
-mrt.sf<-st_read(dsn= "data/geospatial/sourced", 
-             layer="RapidTransitSystemStation")
 ```
 :::
 
@@ -486,8 +587,6 @@ parks.sf<-select(parks.sf, 1)
 
 library.sf<-select(library.sf, 1)
 
-dengue.sf<-select(dengue.sf, 1)
-
 sport.sf<-select(sport.sf, 1)
 
 shoppingmall.sf<-select(shoppingmall.sf, 1)
@@ -499,8 +598,6 @@ supermarket.sf<- select(supermarket.sf, 1)
 primarysch.sf<-select(primarysch.sf, 1)
 
 goodprimarysch.sf<-select(goodprimarysch.sf, 1)
-
-secsch.sf<-select(secsch.sf, 1)
 
 mrt.sf<-select(mrt.sf, 1)
 ```
@@ -520,8 +617,6 @@ length(which(st_is_valid(parks.sf) == FALSE))
 
 length(which(st_is_valid(library.sf) == FALSE))
 
-length(which(st_is_valid(dengue.sf) == FALSE))
-
 length(which(st_is_valid(sport.sf) == FALSE))
 
 length(which(st_is_valid(busstop.sf) == FALSE))
@@ -534,8 +629,6 @@ length(which(st_is_valid(primarysch.sf) == FALSE))
 
 length(which(st_is_valid(goodprimarysch.sf) == FALSE))
 
-length(which(st_is_valid(secsch.sf) == FALSE))
-
 length(which(st_is_valid(mrt.sf) == FALSE))
 
 length(which(st_is_valid(mpsz.sf) == FALSE))
@@ -546,15 +639,6 @@ We see that mpsz has 6 invalid geometries. Lets address them and check again
 ```{r}
 mpsz.sf <- st_make_valid(mpsz.sf)
 length(which(st_is_valid(mpsz.sf) == FALSE))
-```
-
-Mrt.sf also has 2 invalid geometries. Lets address them and check again
-
-```{r}
-mrt.sf <- mrt.sf |> 
-  st_cast("MULTIPOLYGON") |> 
-  st_make_valid()
-length(which(st_is_valid(mrt.sf) == FALSE))
 ```
 
 #### **Check for missing values**
@@ -584,10 +668,6 @@ library.sf[rowSums(is.na(library.sf))!=0,]
 ```
 
 ```{r}
-dengue.sf[rowSums(is.na(dengue.sf))!=0,]
-```
-
-```{r}
 sport.sf[rowSums(is.na(sport.sf))!=0,]
 ```
 
@@ -604,10 +684,6 @@ supermarket.sf[rowSums(is.na(supermarket.sf))!=0,]
 ```
 
 ```{r}
-secsch.sf[rowSums(is.na(secsch.sf))!=0,]
-```
-
-```{r}
 primarysch.sf[rowSums(is.na(primarysch.sf))!=0,]
 ```
 
@@ -619,7 +695,7 @@ goodprimarysch.sf[rowSums(is.na(goodprimarysch.sf))!=0,]
 mrt.sf[rowSums(is.na(mrt.sf))!=0,]
 ```
 
-## Verifying + Transforming Coordinate system
+### Verifying + Transforming Coordinate system
 
 ::: panel-tabset
 #### Base
@@ -637,7 +713,6 @@ st_crs(childcare.sf)
 st_crs(kindergartens.sf)
 st_crs(parks.sf)
 st_crs(library.sf)
-st_crs(dengue.sf)
 st_crs(sport.sf)
 ```
 
@@ -649,7 +724,6 @@ st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
 st_crs(primarysch.sf)
 st_crs(goodprimarysch.sf)
-st_crs(secsch.sf)
 st_crs(mrt.sf)
 ```
 
@@ -657,6 +731,8 @@ Note: our projected CRS should be SVY21 (EPSG code 3414). However, some of the e
 :::
 
 ### Transforming CRS
+
+With the invalid geometries found earlier, we use the functions st_set_crs() and st_transform() to correct them.
 
 ```{r}
 #st_set_crs() assigns proper EPSG code
@@ -670,16 +746,16 @@ childcare.sf<-st_transform(childcare.sf, crs=3414)
 kindergartens.sf<-st_transform(kindergartens.sf, crs=3414)
 parks.sf<-st_transform(parks.sf, crs=3414)
 library.sf<-st_transform(library.sf, crs=3414)
-dengue.sf<-st_transform(dengue.sf, crs=3414)
 sport.sf<-st_transform(sport.sf, crs=3414)
 shoppingmall.sf<-st_transform(shoppingmall.sf, crs=3414)
 primarysch.sf<-st_transform(primarysch.sf, crs=3414)
 goodprimarysch.sf<-st_transform(goodprimarysch.sf, crs=3414)
-secsch.sf<-st_transform(secsch.sf, crs=3414)
 mrt.sf<-st_transform(mrt.sf, crs=3414)
 ```
 
-## Checking crs
+### Checking crs
+
+Subsequently, we check again to make sure the data is in the proper CRS.
 
 ::: panel-tabset
 #### Base
@@ -697,7 +773,6 @@ st_crs(childcare.sf)
 st_crs(kindergartens.sf)
 st_crs(parks.sf)
 st_crs(library.sf)
-st_crs(dengue.sf)
 st_crs(sport.sf)
 ```
 
@@ -709,14 +784,13 @@ st_crs(shoppingmall.sf)
 st_crs(supermarket.sf)
 st_crs(primarysch.sf)
 st_crs(goodprimarysch.sf)
-st_crs(secsch.sf)
 st_crs(mrt.sf)
 ```
 :::
 
-## EDA
+## Exploratory Data Analysis
 
-Plots for sf data frames
+Lets do a quick EDA for the data we collected!
 
 ::: panel-tabset
 ### Transportation
@@ -730,7 +804,7 @@ tm_shape(mpsz.sf) +
 tm_shape(busstop.sf) +
   tm_dots(col="red", size=0.05, alpha=0.5) +
 tm_shape(mrt.sf) +
-  tm_polygons(col="green", alpha=1)+
+  tm_dots(col="green", alpha=1)+
   tm_layout(main.title = "Transportation",
           main.title.position = "center",
           main.title.size = 1.2,
@@ -788,25 +862,31 @@ tm_shape(eldercare.sf) +
 ```
 :::
 
-## Structural Factors
+## Data Wrangling
 
-### Floor Level
+### Structural Factors
 
-1.  Identifying the unique ranges in story
+This includes the inherent structural factors of the flats, including Area, Floor Level and Lease Remaining years.
 
-```{r}
-unique(resale$storey_range)
-```
+#### Floor Level - create as ordinal
 
-2.  Use pivot longer to create dummy variables
+To simplify analysis, we create the an ordinal column for the floor level variable. This code chunk matches the story levels to the list, and gives it an ordinal value based on its relative positioning in the list given (1 would be allocated to "01 TO 03", 2 allocated to "04 TO 06"....).
 
 ```{r}
-resale <- resale %>%
-  pivot_wider(names_from = storey_range, values_from = storey_range, 
-              values_fn = list(storey_range = ~1), values_fill = 0)
+# Define the story levels and ordinal values 
+story_levels <- c("01 TO 03", "04 TO 06", "07 TO 09", "10 TO 12", "13 TO 15", "16 TO 18", "19 TO 21", "22 TO 24", "25 TO 27", "28 TO 30", "31 TO 33", "34 TO 36", "37 TO 39", "40 TO 42", "43 TO 45", "46 TO 48", "49 TO 51") 
+story_ordinal <- seq_along(story_levels)  # Create the ordinal variable based on the story column 
+resale$Story_Ordinal <- story_ordinal[match(resale$storey_range, story_levels)]  # Set the labels for the ordinal variable 
+levels(resale$Story_Ordinal) <- story_levels
+
+# Lastly, we mutate the ordinal variable as a numeric
+resale<- resale |> 
+  mutate(Story_Ordinal=as.numeric(Story_Ordinal))
 ```
 
-### Remaining lease
+#### Remaining lease - mutate to years
+
+The code chunk below seeks to convert the remaining lease period to in terms of years.
 
 ```{r}
 str_list <- str_split(resale$remaining_lease, " ")
@@ -824,7 +904,11 @@ for (i in 1:length(str_list)) {
 }
 ```
 
-## Locational Factors
+### Locational Factors
+
+This includes factors that concern location of amenities to the flat in question. For instance, Proximity to CBD or number of primary schools withi 350 m from the flat in question.
+
+#### CBD Location
 
 We need to factor in the proximity to CBD in the downtown core. As such let's take the coordinates of Downtown Core to be the coordinates of the CBD
 
@@ -837,9 +921,9 @@ cbd.sf <- data.frame(lat, lng) %>%
   st_transform(crs=3414)
 ```
 
-## Proximity Distance Calculation
+#### Proximity Distance Calculation
 
-### Converting resale df into sf object
+##### Converting resale df into sf object
 
 ```{r}
 resale.sf <- st_as_sf(resale, 
@@ -852,7 +936,7 @@ resale.sf <- st_as_sf(resale,
 
 One of the things we need to find is the proximity to particular facilities - which we can compute with st_distance(), and find the closest facility (shortest distance) with the rowMins() function of our matrixStats package. The values will be appended to the data frame as a new column.
 
-```{r}
+```{r eval = FALSE}
 library(units)
 library(matrixStats)
 proximity <- function(df1, df2, varname) {
@@ -863,9 +947,9 @@ proximity <- function(df1, df2, varname) {
 }
 ```
 
-Implementation of function
+##### Implementation
 
-```{r}
+```{r eval = FALSE}
 resale.sf <- 
   proximity(resale.sf, cbd.sf, "PROX_CBD")
 
@@ -888,9 +972,6 @@ resale.sf <-
   proximity(resale.sf, library.sf, "PROX_LIBRARY")
 
 resale.sf <- 
-  proximity(resale.sf, dengue.sf, "PROX_DENGUE")
-
-resale.sf <- 
   proximity(resale.sf, sport.sf, "PROX_SPORT")
 
 resale.sf <- 
@@ -909,13 +990,10 @@ resale.sf <-
   proximity(resale.sf, goodprimarysch.sf, "PROX_GOODPRIMARYSCH")
 
 resale.sf <- 
-  proximity(resale.sf, secsch.sf, "PROX_SECSCH")
-
-resale.sf <- 
   proximity(resale.sf, mrt.sf, "PROX_MRT")
 ```
 
-## Facility Count within radius calculation
+#### Facility Count within radius calculation
 
 Besides proximity, which calculates the shortest distance, we also want to find the number of facilities within a particular radius.
 
@@ -929,9 +1007,9 @@ num_radius <- function(df1, df2, varname, radius) {
 }
 ```
 
-Implementation
+##### Implementation
 
-```{r}
+```{r eval=FALSE}
 resale.sf <- 
   num_radius(resale.sf, busstop.sf, "NUM_BUSSTOP", 350)
   
@@ -945,23 +1023,228 @@ resale.sf <-
   num_radius(resale.sf, primarysch.sf, "NUM_PRIMARYSCH", 1000)
 ```
 
-## Saving Resale.sf as a shapefile
+#### Saving Resale.sf as a rds file
 
-This is for easy reference
+We are finally done with the inclusion of our prox and num variables. Some final changes to the sf dataframe includes
 
-```{r}
-resale.sf<- resale.sf |> 
-  mutate() |> 
-  rename("AREA_SQM" = "floor_area_sqm", 
-         "LEASE_YRS" = "remaining_lease", 
-         "PRICE"= "resale_price") |> 
-  relocate(`PRICE`)
-
-resale.sf
+```{r eval = FALSE}
+saveRDS(resale.sf, "data/model/resale.sf.rds")
 ```
 
-We can now save the final shape file
+#### Reading rds file
 
-```{r eval=TRUE}
-st_write(resale.sf, "data/geospatial/resale-final.shp", append=FALSE)
+```{r}
+resale.sf<-read_rds("data/model/resale.sf.rds")
+
+resale.sf<-resale.sf |> 
+  mutate(LEASE_YRS=as.double(LEASE_YRS))
+```
+
+## Regressions
+
+### Data Preparation
+
+#### Building a correlation matrix
+
+```{r}
+resale_nogeo <- resale.sf |> 
+  st_drop_geometry() |> 
+  select_if(is.numeric) |> 
+  select(-PRICE)
+corrplot::corrplot(cor(resale_nogeo), 
+                   diag = FALSE, 
+                   order = "AOE",
+                   tl.pos = "td", 
+                   tl.cex = 0.5, 
+                   method = "number", 
+                   type = "upper")
+```
+
+We realise that the variables "lease_commence_date" which is the beginning year of lease, and "LEASE_YRS" which is the number of years left in the lease, are perfectly collinear with a correlation coeffecient of 1. We choose to drop "lease_commence_date" to avoid the problem of perfect collinearity. This creates our final resale df ("resale_final").
+
+```{r}
+resale_final <- resale.sf |> 
+  select(-lease_commence_date)
+```
+
+#### Splitting data into test and training set
+
+From the assignment brief, our training data consists of transactions that occurred from 1st January 2021 to 31st December 2022, while test data occurred from January and February 2023.
+
+```{r}
+train_data<-resale_final |> 
+  filter(month >= "2021-01" & month <= "2022-12")
+
+test_data<-resale_final |> 
+  filter(month >= "2023-01" & month <= "2023-02")
+```
+
+### Building a non spatial multiple linear regression
+
+```{r eval = FALSE}
+price_mlr<- lm(PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, data=train_data)
+#removed flat type given that we only consider 4 room flats
+#remove geographical variables given GWR
+#removed month <- questionable interpretability of coefficient (if generated)
+
+summary(price_mlr)
+
+# saving the result as an rds object
+write_rds(price_mlr, "data/model/price_mlr.rds")
+```
+
+We can read the output below
+
+```{r}
+price_mlr_summary<-read_rds("data/model/price_mlr.rds")
+price_mlr_summary
+```
+
+### GWR predictive method
+
+gwr method will be used to calibrate a model to predict the HDB resale prices
+
+```{r}
+train_data_sp<- sf::as_Spatial(train_data)
+train_data_sp
+```
+
+#### Computing adaptive bandwidth
+
+Next, bw.gwr() of GWmodel package will be used to determine the optimal bandwidth to be used.
+
+```{r eval = FALSE}
+bw_adaptive <- bw.gwr(PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH,
+                  data=train_data_sp,
+                  approach="CV",
+                  kernel="gaussian",
+                  adaptive=TRUE,
+                  longlat=FALSE)
+
+# saving the result as an rds object
+write_rds(bw_adaptive, "data/model/bw_adaptive.rds")
+```
+
+The code below can be used to display the model output.
+
+```{r}
+bw_adaptive <- read_rds("data/model/bw_adaptive.rds")
+```
+
+#### Constructing gwr model
+
+Forming model
+
+```{r eval = FALSE}
+gwr_adaptive <- gwr.basic(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH,
+                          data=train_data_sp,
+                          bw=bw_adaptive, 
+                          kernel = 'gaussian', 
+                          adaptive=TRUE,
+                          longlat = FALSE)
+
+# saving the result as an rds object
+write_rds(gwr_adaptive, "data/model/gwr_adaptive.rds")
+```
+
+The code below can be used to display the model output.
+
+```{r}
+gwr_adaptive <- read_rds("data/model/gwr_adaptive.rds")
+```
+
+### Preparing coordinates data
+
+#### Extracting coordinates data
+
+```{r eval=FALSE}
+coords<-st_coordinates(resale_final)
+coords_train<-st_coordinates(train_data)
+coords_test<-st_coordinates(test_data)
+```
+
+Save into rds
+
+```{r eval=FALSE}
+write_rds(coords_train, "data/model/coords_train.rds")
+write_rds(coords_test, "data/model/coords_test.rds")
+```
+
+Read RDS
+
+```{r}
+coords_train<-read_rds("data/model/coords_train.rds")
+coords_test<-read_rds("data/model/coords_test.rds")
+```
+
+#### Dropping geometry field
+
+Drop geometry column of the sf dataframe by using st_drop_geometry()
+
+```{r}
+train_data<-train_data |> 
+  st_drop_geometry()
+```
+
+### Calibrating Random Forest Model
+
+In this section, you will learn how to calibrate a model to predict HDB resale price by using random forest function of ranger package.
+
+#### forming model
+
+```{r eval=FALSE}
+set.seed(1234) 
+rf<- ranger(PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, data=train_data)
+
+summary(rf)
+
+# saving the result as an rds object
+write_rds(rf, "data/model/rf.rds")
+```
+
+read RDS object
+
+```{r}
+rf<-read_rds("data/model/rf.rds")
+print(rf)
+```
+
+### Calibrating Geographic random forest using grf
+
+#### Computing bandwidth for grf
+
+Minimise trees to trees=50 for ease of computation.
+
+```{r eval=FALSE}
+# determining bandwidth for model
+bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, dataset = train_data, kernel = "adaptive", coords = coords_train, trees=10)
+
+# saving the result as an rds object
+write_rds(bw_grf_adaptive, "data/model/bw_grf_adaptive.rds")
+```
+
+read RDS object
+
+```{r eval=FALSE}
+bw_grf_adaptive<-read_rds("data/model/bw_grf_adaptive.rds")
+```
+
+#### Generating model
+
+```{r eval = FALSE}
+set.seed(1234)
+gwRF_adaptive<-grf(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH,
+                   dframe=train_data,
+                   bw=bw_grf_adaptive, # need to know how to calculate using function
+                   kernel="adaptive",
+                   coords=coords_train,
+                   ntree=10)
+
+# saving the result as an rds object
+write_rds(gwRF_adaptive, "data/model/gwRF_adaptive.rds")
+```
+
+```{r eval = FALSE}
+gwRF_adaptive<-read_rds("data/model/gwRF_adaptive.rds")
+gwRF_adaptive
 ```
