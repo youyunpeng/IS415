@@ -1077,6 +1077,9 @@ train_data<-resale_final |>
 
 test_data<-resale_final |> 
   filter(month >= "2023-01" & month <= "2023-02")
+
+train_data_rf<-train_data |> 
+  filter(month >= "2022-10" & month <= "2022-12")
 ```
 
 ### Building a non spatial multiple linear regression
@@ -1102,7 +1105,9 @@ price_mlr_summary
 
 ### GWR predictive method
 
-gwr method will be used to calibrate a model to predict the HDB resale prices
+gwr method will be used to calibrate a model to predict the HDB resale prices.
+
+We first need to convert the sf data.frame to a SpatialPointDataFrame
 
 ```{r}
 train_data_sp<- sf::as_Spatial(train_data)
@@ -1131,7 +1136,7 @@ The code below can be used to display the model output.
 bw_adaptive <- read_rds("data/model/bw_adaptive.rds")
 ```
 
-#### Constructing gwr model
+    #### Constructing gwr model
 
 Forming model
 
@@ -1156,11 +1161,15 @@ gwr_adaptive <- read_rds("data/model/gwr_adaptive.rds")
 ### Preparing coordinates data
 
 #### Extracting coordinates data
+The code chunk below extracts the x, y coordinates of the full training and test data sets.
 
 ```{r eval=FALSE}
 coords<-st_coordinates(resale_final)
 coords_train<-st_coordinates(train_data)
 coords_test<-st_coordinates(test_data)
+
+# create coords for training for rf
+coords_train_rf<-st_coordinates(train_data_rf)
 ```
 
 Save into rds
@@ -1168,6 +1177,8 @@ Save into rds
 ```{r eval=FALSE}
 write_rds(coords_train, "data/model/coords_train.rds")
 write_rds(coords_test, "data/model/coords_test.rds")
+
+write_rds(coords_train_rf, "data/model/coords_train_rf.rds")
 ```
 
 Read RDS
@@ -1175,6 +1186,8 @@ Read RDS
 ```{r}
 coords_train<-read_rds("data/model/coords_train.rds")
 coords_test<-read_rds("data/model/coords_test.rds")
+
+coords_train_rf<-read_rds("data/model/coords_train_rf.rds")
 ```
 
 #### Dropping geometry field
@@ -1184,11 +1197,17 @@ Drop geometry column of the sf dataframe by using st_drop_geometry()
 ```{r}
 train_data<-train_data |> 
   st_drop_geometry()
+
+train_data_rf<-train_data_rf |> 
+  st_drop_geometry()
+
+write_rds(train_data, "data/model/train_data.rds")
+train_data<-read_rds("data/model/train_data.rds")
 ```
 
 ### Calibrating Random Forest Model
 
-In this section, you will learn how to calibrate a model to predict HDB resale price by using random forest function of ranger package.
+In this section, we will to calibrate a model to predict HDB resale price by using random forest function of ranger package.
 
 #### forming model
 
@@ -1217,7 +1236,7 @@ Minimise trees to trees=50 for ease of computation.
 
 ```{r eval=FALSE}
 # determining bandwidth for model
-bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, dataset = train_data, kernel = "adaptive", coords = coords_train, trees=10)
+bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, dataset = train_data_rf, kernel = "adaptive", coords = coords_train_rf, trees=50)
 
 # saving the result as an rds object
 write_rds(bw_grf_adaptive, "data/model/bw_grf_adaptive.rds")
@@ -1238,13 +1257,45 @@ gwRF_adaptive<-grf(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_
                    bw=bw_grf_adaptive, # need to know how to calculate using function
                    kernel="adaptive",
                    coords=coords_train,
-                   ntree=10)
+                   ntree=5)
 
 # saving the result as an rds object
 write_rds(gwRF_adaptive, "data/model/gwRF_adaptive.rds")
 ```
 
-```{r eval = FALSE}
+```{r}
 gwRF_adaptive<-read_rds("data/model/gwRF_adaptive.rds")
 gwRF_adaptive
 ```
+## Predictions
+### Preparing the test data
+
+# YET TO CHANGE
+
+The code chunk below will be used to combine the test data with the corresponding coordinates data.
+```{r}
+test_data <- cbind(test_data, coords_test) %>%
+  st_drop_geometry()
+```
+
+### Predicting with test data
+Next, predict.grf() of spatialML package will be used to predict the resale value by using the test data and gwRF_adaptive model calibrated earlier.
+```{r}
+gwRF_pred <- predict.grf(gwRF_adaptive, 
+                           test_data, 
+                           x.var.name="X",
+                           y.var.name="Y", 
+                           local.w=1,
+                           global.w=0)
+
+GRF_pred <- write_rds(gwRF_pred, "data/model/GRF_pred.rds")
+```
+
+### Converting the predictint output into a dataframe
+The output of the predict.grf() is a vector of predicted values. It is wiser to convert it into a data frame for further visualisation and analysis.
+```{r}
+GRF_pred <- read_rds("data/model/GRF_pred.rds")
+GRF_pred_df <- as.data.frame(GRF_pred)
+```
+
+In the code chunk below, cbind() is used to append the predicted values onto test_datathe
