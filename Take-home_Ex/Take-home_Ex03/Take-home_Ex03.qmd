@@ -3,17 +3,36 @@ title: "Take-home Exercise 3: Predicting HDB Public Housing Resale Pricies using
 date: "11 March 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
-format: html
-execute: 
-  echo: true
-  eval: true
-  warning: false
+format:
+  html:
+    code-fold: true
+    code-tools: true
 editor: visual
 ---
 
 ## Task
 
-In this take-home exercise, you are tasked to predict HDB resale prices at the sub-market level (i.e. HDB 3-room, HDB 4-room and HDB 5-room) for the month of January and February 2023 in Singapore. The predictive models must be built by using by using conventional OLS method and GWR methods. You are also required to compare the performance of the conventional OLS method versus the geographical weighted methods.
+Pandemic-induced supply chain constraints coinciding with the booming demand for flats have driven HDB resale prices up by 10.3% in 2022. For young couples deciding to buy a home to stay in, it seems nearly impossible to do so especially with the exorbitantly high price tags attached to flats recently.
+
+This has caused many to think about what are the factors that affect the prices of HDB resale flats-- some of which may be geographical in nature. For instance, some may pioritise of living near the local MRT, while others may focus on the location of schools within the vicinity of a flat.
+
+In this take-home exercise, we will build a predictive model for the month of January and February 2023 in Singapore. The predictive models must be built by using by using conventional OLS method and GWR methods. Lastly, we will compare the performance of the conventional OLS method versus the geographical weighted methods.
+
+The assignment submission is split into the following sections
+
+1.  [Installing packages]
+
+2.  [Data Collection](#data-collection-1)
+
+3.  [Exploratory Data Analysis]
+
+4.  [Data Wrangling](#data-wrangling-1)
+
+5.  [Regressions](#regressions-1)
+
+6.  [Predictions]
+
+7.  [References]
 
 ## Installing packages
 
@@ -65,7 +84,7 @@ The uses of each package installed can be found below:
 
 ### OneMapAPI: usage
 
-In this exercise, the collection of the coordinate data of singapore-specific places can tap on the database implemented by [OneMapSg](https://www.onemap.gov.sg/main/v2/).
+In this exercise, the collection of the coordinate data of singapore-specific places can tap on the database implemented by [OneMapSg](https://www.onemap.gov.sg/main/v2/). 🏠
 
 Referencing one of our senior [Megan's](https://is415-msty.netlify.app/posts/2021-10-25-take-home-exercise-3/) work, the steps to intialise this processes is as follows:
 
@@ -93,9 +112,9 @@ themes<-search_themes(token)
 themes
 ```
 
-With that in mind, lets move on to data collection!
+With that in mind, lets move on to data collection! 🙃
 
-## Data Collection
+## Data Collection {#data-collection-1}
 
 The following data would be used for the formation of our regression
 
@@ -209,13 +228,13 @@ resale$street_name <- gsub("ST\\.", "SAINT", resale$street_name)
 
 #### Creating function to get longitude and lattitude
 
-Notice that the data provided in the resale flat data does not include coordinates! We need to create our own geocoding function. With reference to our senior Megan's work once again, these are the steps required in creating a geocoding function
+Notice that the data provided in the resale flat data does not include coordinates! We need to create our own geocoding function. With reference to our senior Megan's work once again, these are the steps required in creating a geocoding function.
 
 1.  Combine the block and street name into an address
 
 2.  Pass the address as the searchVal in our query
 
-3.  Send the query to OneMapSG search *Note: Since we don\'t need all the address details, we can set `getAddrDetails` as \'N\'*
+3.  Send the query to OneMapSG search *Note: Since we don't need all the address details, we can set `getAddrDetails` as 'N'*
 
 4.  Convert response (JSON object) to text
 
@@ -247,7 +266,7 @@ geocode <- function(block, streetname) {
 
 #### Passing code through resale df
 
-With our function in place, we then create a loop to implement the geocoding function through our transaction data.
+With our function in place, we then create a loop to implement the geocoding function through our transaction data. ✌🏼
 
 ```{r eval = FALSE}
 resale$LATITUDE <- 0
@@ -263,13 +282,13 @@ for (i in 1:nrow(resale)){
 
 #### Save as an RDS object
 
-Especially given the extensive dataframe, this would take quite long to load! to avoid having to reload the output again, we save this as a RDS object.
+Especially given the extensive dataframe, this would take quite long to load! to avoid having to reload the output again, we save this as a RDS object 😵‍💫.
 
 ```{r eval = FALSE}
 saveRDS(resale, file="resale", compress=FALSE)
 ```
 
-now we can read the resale file easily
+now we can read the resale file easily! 🤭
 
 ```{r}
 resale<-readRDS("resale")
@@ -299,7 +318,7 @@ Our geospatial data can be split into several categories
 |             |                         | sport facilities                                     |                                                       |
 +-------------+-------------------------+------------------------------------------------------+-------------------------------------------------------+
 
-Feel free to explore the codes we used to extract the data in the different panels below!
+Feel free to explore the codes we used to extract the data in the different panels below! 🤗
 
 ::: panel-tabset
 #### Extracted
@@ -389,7 +408,7 @@ sport
 
 ![](images/Screenshot%202023-03-11%20at%205.46.23%20PM.png)
 
-When we browse the sports data, we see that the lat and lng columns are not configured in the way we expect it to be. In the Lng column, the longitude of the location is first placed followed by a "\|" and then the latitude of the location.
+When we browse the sports data, we see that the lat and lng columns are not configured in the way we expect it to be. In the Lng column, the longitude of the location is first placed followed by a "\|" and then the latitude of the location. 🥲
 
 Notice that the Lng and Lat are not in the format we want. We create a function to extract the Lng numbers from the string, using str_extract from the package stringr.
 
@@ -788,12 +807,14 @@ st_crs(mrt.sf)
 ```
 :::
 
+Everything looks fine! 🙃We are now done with wrangling our collected datasets!
+
 ## Exploratory Data Analysis
 
 Lets do a quick EDA for the data we collected!
 
 ::: panel-tabset
-### Transportation
+### Transportation 🚃
 
 ```{r}
 #transport graph
@@ -811,7 +832,7 @@ tm_shape(mrt.sf) +
           frame = TRUE)
 ```
 
-### Education
+### Education 📚
 
 ```{r}
 #education
@@ -833,7 +854,7 @@ tm_shape(childcare.sf) +
           frame = TRUE)
 ```
 
-### Amenities
+### Amenities 🚲
 
 ```{r}
 #ammenities
@@ -862,7 +883,7 @@ tm_shape(eldercare.sf) +
 ```
 :::
 
-## Data Wrangling
+## Data Wrangling {#data-wrangling-1}
 
 ### Structural Factors
 
@@ -1025,7 +1046,7 @@ resale.sf <-
 
 #### Saving Resale.sf as a rds file
 
-We are finally done with the inclusion of our prox and num variables. Some final changes to the sf dataframe includes
+We are finally done with the inclusion of our prox and num variables 😫. We can now save our rds object into our model file for easy retrieval!
 
 ```{r eval = FALSE}
 saveRDS(resale.sf, "data/model/resale.sf.rds")
@@ -1040,11 +1061,15 @@ resale.sf<-resale.sf |>
   mutate(LEASE_YRS=as.double(LEASE_YRS))
 ```
 
-## Regressions
+## Regressions {#regressions-1}
+
+With all our data prepared, we are now ready to look into regressing the data to create our prediction models! In particular, we explored the use of OLS, geographical weighted regression, random forest and geographical random forest in this section. 🌳🌲🌴
 
 ### Data Preparation
 
 #### Building a correlation matrix
+
+In order to avoid issues of multicollinearity in regression models, we first visualise our data using a correlation matrix.
 
 ```{r}
 resale_nogeo <- resale.sf |> 
@@ -1077,12 +1102,11 @@ train_data<-resale_final |>
 
 test_data<-resale_final |> 
   filter(month >= "2023-01" & month <= "2023-02")
-
-train_data_rf<-train_data |> 
-  filter(month >= "2022-10" & month <= "2022-12")
 ```
 
 ### Building a non spatial multiple linear regression
+
+First we explored the creation of an OLS model in the code chunk below:
 
 ```{r eval = FALSE}
 price_mlr<- lm(PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, data=train_data)
@@ -1101,6 +1125,10 @@ We can read the output below
 ```{r}
 price_mlr_summary<-read_rds("data/model/price_mlr.rds")
 price_mlr_summary
+
+# a more elegant way of visualising the summary table can be done through using the gtsummary package!
+price_mlr<-read_rds("data/model/price_mlr.rds")
+gtsummary::tbl_regression(price_mlr)
 ```
 
 ### GWR predictive method
@@ -1136,7 +1164,7 @@ The code below can be used to display the model output.
 bw_adaptive <- read_rds("data/model/bw_adaptive.rds")
 ```
 
-    #### Constructing gwr model
+#### Constructing gwr model
 
 Forming model
 
@@ -1161,15 +1189,13 @@ gwr_adaptive <- read_rds("data/model/gwr_adaptive.rds")
 ### Preparing coordinates data
 
 #### Extracting coordinates data
+
 The code chunk below extracts the x, y coordinates of the full training and test data sets.
 
 ```{r eval=FALSE}
 coords<-st_coordinates(resale_final)
 coords_train<-st_coordinates(train_data)
 coords_test<-st_coordinates(test_data)
-
-# create coords for training for rf
-coords_train_rf<-st_coordinates(train_data_rf)
 ```
 
 Save into rds
@@ -1177,8 +1203,6 @@ Save into rds
 ```{r eval=FALSE}
 write_rds(coords_train, "data/model/coords_train.rds")
 write_rds(coords_test, "data/model/coords_test.rds")
-
-write_rds(coords_train_rf, "data/model/coords_train_rf.rds")
 ```
 
 Read RDS
@@ -1186,28 +1210,28 @@ Read RDS
 ```{r}
 coords_train<-read_rds("data/model/coords_train.rds")
 coords_test<-read_rds("data/model/coords_test.rds")
-
-coords_train_rf<-read_rds("data/model/coords_train_rf.rds")
 ```
 
 #### Dropping geometry field
 
 Drop geometry column of the sf dataframe by using st_drop_geometry()
 
-```{r}
+```{r eval=FALSE}
 train_data<-train_data |> 
   st_drop_geometry()
 
-train_data_rf<-train_data_rf |> 
-  st_drop_geometry()
-
 write_rds(train_data, "data/model/train_data.rds")
+```
+
+Read RDS
+
+```{r}
 train_data<-read_rds("data/model/train_data.rds")
 ```
 
 ### Calibrating Random Forest Model
 
-In this section, we will to calibrate a model to predict HDB resale price by using random forest function of ranger package.
+In this section, we will to calibrate a model to predict HDB resale price by using random forest function of ranger package. 🌳🌲🌴🌳🌲🌴
 
 #### forming model
 
@@ -1236,16 +1260,22 @@ Minimise trees to trees=50 for ease of computation.
 
 ```{r eval=FALSE}
 # determining bandwidth for model
-bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, dataset = train_data_rf, kernel = "adaptive", coords = coords_train_rf, trees=50)
+bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_CBD + PROX_ELDERCARE + PROX_HAWKERCENTRE + PROX_PARK + PROX_LIBRARY + PROX_SPORT + PROX_BUSSTOP + PROX_SHOPPINGMALL + PROX_SUPERMARKET + PROX_GOODPRIMARYSCH + PROX_MRT + NUM_CHILDCARE + NUM_KINDERGARTEN + NUM_PRIMARYSCH, dataset = train_data, kernel = "adaptive", coords = coords_train, trees=50)
 
 # saving the result as an rds object
 write_rds(bw_grf_adaptive, "data/model/bw_grf_adaptive.rds")
 ```
 
-read RDS object
+we were unable to gain the bandwidth result even after extensive waiting. For the assignment requirementes, we will consider the bandwidths generated and choose the one that gives the highest R2 value. The output generated can be seen in the screenshots attached:
 
-```{r eval=FALSE}
-bw_grf_adaptive<-read_rds("data/model/bw_grf_adaptive.rds")
+![](images/photo_2023-03-22_20-54-38.jpg)
+
+![](images/photo_2023-03-22_20-54-42.jpg)
+
+From our data gathered, we find that the optimal bandwidth within the bandwidths calculated is when bandwidth = 1211. We then assign this to the bw_grf_adaptive object
+
+```{r}
+bw_grf_adaptive<-1211
 ```
 
 #### Generating model
@@ -1257,30 +1287,34 @@ gwRF_adaptive<-grf(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + PROX_
                    bw=bw_grf_adaptive, # need to know how to calculate using function
                    kernel="adaptive",
                    coords=coords_train,
-                   ntree=5)
+                   ntree=50)
 
 # saving the result as an rds object
 write_rds(gwRF_adaptive, "data/model/gwRF_adaptive.rds")
 ```
 
-```{r}
-gwRF_adaptive<-read_rds("data/model/gwRF_adaptive.rds")
-gwRF_adaptive
-```
+The output rds file generated is 31.7GB, which is larger than what is recommended to push into Git. Therefore, we append screenshots of our outputs instead. 🌳🌲🌴🌳🌲🌴
+
+![](images/image_2023-03-24_08-35-58.png)![](images/image_2023-03-24_09-03-48.png)![](images/photo_2023-03-24_11-26-06.jpg)![](images/photo_2023-03-24_11-26-09.jpg)
+
 ## Predictions
+
 ### Preparing the test data
 
-# YET TO CHANGE
-
 The code chunk below will be used to combine the test data with the corresponding coordinates data.
-```{r}
+
+```{r eval=FALSE}
 test_data <- cbind(test_data, coords_test) %>%
   st_drop_geometry()
+
+write_rds(test_data, "data/model/test_data.rds")
 ```
 
 ### Predicting with test data
+
 Next, predict.grf() of spatialML package will be used to predict the resale value by using the test data and gwRF_adaptive model calibrated earlier.
-```{r}
+
+```{r eval=FALSE}
 gwRF_pred <- predict.grf(gwRF_adaptive, 
                            test_data, 
                            x.var.name="X",
@@ -1291,11 +1325,100 @@ gwRF_pred <- predict.grf(gwRF_adaptive,
 GRF_pred <- write_rds(gwRF_pred, "data/model/GRF_pred.rds")
 ```
 
-### Converting the predictint output into a dataframe
+### Converting the prediction output into a dataframe
+
 The output of the predict.grf() is a vector of predicted values. It is wiser to convert it into a data frame for further visualisation and analysis.
+
 ```{r}
 GRF_pred <- read_rds("data/model/GRF_pred.rds")
 GRF_pred_df <- as.data.frame(GRF_pred)
 ```
 
-In the code chunk below, cbind() is used to append the predicted values onto test_datathe
+In the code chunk below, cbind() is used to append the predicted values onto test_data.
+
+```{r}
+test_data_p <- cbind(test_data, GRF_pred_df)
+
+#save this as an rds object
+write_rds(test_data_p, "data/model/test_data_p.rds")
+```
+
+### Calculating Root Mean Square Error
+
+The root mean square error (RMSE) allows us to measure how far predicted values are from observed values in a regression analysis. In the code chunk below, rmse() of Metrics package is used to compute the RMSE.
+
+```{r}
+Metrics::rmse(test_data_p$PRICE, 
+     test_data_p$GRF_pred)
+```
+
+### Visualising the predicted values
+
+Alternatively, scatterplot can be used to visualise the actual resale price and the predicted resale price by using the code chunk below.
+
+```{r}
+ggplot(data = test_data_p,
+       aes(x = GRF_pred,
+           y = PRICE)) +
+  geom_point()
+```
+
+## Conclusions: Comparisons
+
+In the last objective of this take home assignment, a comparison between the conventional OLS method versus the geographically weighted methods should be done.
+
+As this task is focused on predictive modelling, a comparison between the OLS method (a method predominantly for explanatory models) and geographical random forest (for predictive modelling with geographical elements).
+
++-------------------+--------------------------------------------+-------------------------------------------------------------+
+|                   | OLS                                        | Geographical random forest                                  |
++===================+============================================+=============================================================+
+| Main purpose      | Explanatory model for standard regressions | Predictive model for regressions with geographical elements |
++-------------------+--------------------------------------------+-------------------------------------------------------------+
+| Seeks to minimise | residual sum of squares                    | mean squared error                                          |
++-------------------+--------------------------------------------+-------------------------------------------------------------+
+
+With a basic understanding of how each model works, we hypothesise that the gwRF model will be the most appropriate for analysis, as it accounts for geographical elements included in the resale flat data, as well as the predictive aspect of this model.
+
+To estimate the predictive power of each of the models, we plot each of the predicted values against actual prices in the test data set, and calculate the root MSEs for each of the models.
+
+::: panel-tabset
+### OLS
+
+```{r}
+price_mlr<-read_rds("data/model/price_mlr.rds")
+mlr_pred_df<-predict(price_mlr, test_data)
+test_data_mlr <- cbind(test_data, mlr_pred_df)
+
+Metrics::rmse(test_data_mlr$PRICE, 
+     test_data_mlr$mlr_pred_df)
+
+ggplot(data = test_data_mlr,
+       aes(x = mlr_pred_df,
+           y = PRICE)) +
+  geom_point()
+```
+
+### Geographical Random Forest
+
+```{r}
+#detailed code chunks can be found in earlier sections
+Metrics::rmse(test_data_p$PRICE, 
+     test_data_p$GRF_pred)
+ggplot(data = test_data_p,
+       aes(x = GRF_pred,
+           y = PRICE)) +
+  geom_point()
+```
+:::
+
+From this comparisons, we conclude that the predictive power of geographical weighted random forest was the most powerful to predict resale prices. this affirms our hypothesis that geographical weighted random forest models are the most appropriate for modelling resale flat data. 🌳🌲🌴
+
+However, our analysis in this assignment was limited🙁:
+
+1.  A key flaw was the limited number of trees we used in each forest generated in the gwRF model. Due to limited capacity of our devices, we set ntree = 50 instead of a higher value. A more comprehensive model could have been created with a stronger device that has greater computational power.
+
+## References
+
+In the course of this assignment, reference was taken from our senior Megans work. Check out her website here 🤗: <https://is415-msty.netlify.app/posts/2021-10-25-take-home-exercise-3/>
+
+We also referenced Prof Kam's in class exercise 9 in this assignment: <https://is415-gaa-tskam.netlify.app/in-class_ex/in-class_ex09/in-class_ex09_gwml>

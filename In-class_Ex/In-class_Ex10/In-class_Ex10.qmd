@@ -1,5 +1,5 @@
 ---
-title: "In-class Exercise 9: Geographically Weighted Random Forest"
+title: "In-class Exercise 10: Accessibility"
 date: "13 March 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
