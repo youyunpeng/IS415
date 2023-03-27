@@ -1,6 +1,6 @@
 ---
-title: "In-class Exercise 9: Geographically Weighted Random Forest"
-date: "13 March 2023"
+title: "In-class Exercise 11: Spatial Interaction Models"
+date: "27 March 2023"
 date-modified: "`r Sys.Date()`"
 number-sections: true
 format: html
@@ -14,167 +14,238 @@ editor: visual
 ## Installing packages
 
 ```{r}
-pacman::p_load(sf, spdep, GWmodel, SpatialML, tidyverse, tmap, ggpubr, olsrr, devtools, tidymodels)
+pacman::p_load(tmap, sf, sp, caret, stplanr, reshape2, broom, tidyverse)
 
 # essential packages include: sf, spdep, GWmodel, SpatialML, tidyverse
 ```
 
 ## Preparing data
 
-### Reading data file into rds
+### Importing the data into R environment
 
-Reading the input data sets. It is in simple feature data frames.
-
-```{r}
-mdata<-read_rds("data/aspatial/mdata.rds")
-summary(mdata)
-```
-
-### Random sampling
-
-```{r eval=FALSE}
-set.seed(1234) #whenever code requires randomisation, remember to set seed
-resale_split<-initial_split(mdata,
-                            prop=6.5/10,)
-train_data<-training(resale_split)
-test_data<-testing(resale_split)
-```
-
-```{r eval=FALSE}
-write_rds(train_data, "data/model/train_data.rds")
-write_rds(test_data, "data/model/test_data.rds")
-```
-
-## Computing the
-
-## Reading data
+Firstly, we will import the passenger volume by origin destination bus stops data set downloaded from LTA datamall by using read_csv() of readr package.
 
 ```{r}
-train_data<- read_rds("data/model/train_data.rds")
-test_data<- read_rds("data/model/test_data.rds")
+odbus<-read_csv("data/aspatial/origin_destination_bus_202210.csv")
 ```
-
-## buidling a non spatial multiple linear regression
 
 ```{r}
-price_mlr<- lm(resale_price~floor_area_sqm + storey_order + remaining_lease_mths + PROX_CBD + PROX_ELDERLYCARE + PROX_HAWKER + PROX_MRT + PROX_PARK + PROX_MALL + PROX_SUPERMARKET + WITHIN_350M_KINDERGARTEN + WITHIN_350M_CHILDCARE + WITHIN_350M_BUS + WITHIN_1KM_PRISCH, data=train_data)
+odbus$ORIGIN_PT_CODE<-as.factor(odbus$ORIGIN_PT_CODE)
 
-summary(price_mlr)
+odbus$DESTINATION_PT_CODE<-as.factor(odbus$DESTINATION_PT_CODE)
 ```
 
-```{r eval=FALSE}
-write_rds(price_mlr, "data/model/price_mlr.rds")
-```
-
-## GWR predictive method
-
-gwr method will be used to calibrate a model to predict the HDB resale prices
+only interested in weekday, 7-9
 
 ```{r}
-train_data_sp<- as_Spatial(train_data)
-train_data_sp
+odbus7_9<-odbus |> 
+  filter(DAY_TYPE == "WEEKDAY") |> 
+  filter(TIME_PER_HOUR >= 7 &
+           TIME_PER_HOUR <=9) |> 
+  group_by(ORIGIN_PT_CODE,
+           DESTINATION_PT_CODE) |> 
+  summarise(TRIPS = sum(TOTAL_TRIPS))
+
+write_rds(odbus7_9,
+          "data/rds/odbus7_9.rds")
 ```
 
-## Computing adaptive bandwidth
-
-we can use geographically weighted method to calibrate model
-
-## Random forst method
-
-### Preparing coordinate data
-
-#### Extracting coordinates data
-
-```{r eval=FALSE}
-coords<-st_coordinates(mdata)
-coords_train<-st_coordinates(train_data)
-coords_test<-st_coordinates(test_data)
-```
-
-Save into rds
-
-```{r eval=FALSE}
-coords_train<-write_rds(coords_train, "data/model/coords_train.rds")
-coords_test<-write_rds(coords_test, "data/model/coords_test.rds")
-```
-
-Read RDS
+Read the odbus7_9 object
 
 ```{r}
-coords_train<-read_rds("data/model/coords_train.rds")
-coords_test<-read_rds("data/model/coords_test.rds")
+odbus7_9<-read_rds("data/rds/odbus7_9.rds")
 ```
 
-### Dropping geometry field
-
-Drop geometry column of the sf dataframe by using st_drop_geometry()
+Reading geospatial data in
 
 ```{r}
-train_data<-train_data |> 
+busstop<-st_read(dsn="data/geospatial",
+                 layer = "BusStop") |> 
+  st_transform(crs=3414)
+
+mpsz<-st_read(dsn="data/geospatial",
+                 layer = "MPSZ-2019") |> 
+  st_transform(crs=3414)
+mpsz
+```
+## Combine the busstop and polygon data
+```{r}
+busstop_mpsz<-st_intersection(busstop, mpsz) |> 
+  select(BUS_STOP_N, SUBZONE_C) |> 
   st_drop_geometry()
-```
 
-### forming model
-
-```{r}
-set.seed(1234)
-rf<- ranger(resale_price~floor_area_sqm + storey_order + remaining_lease_mths + PROX_CBD + PROX_ELDERLYCARE + PROX_HAWKER + PROX_MRT + PROX_PARK + PROX_MALL + PROX_SUPERMARKET + WITHIN_350M_KINDERGARTEN + WITHIN_350M_CHILDCARE + WITHIN_350M_BUS + WITHIN_1KM_PRISCH, data=train_data)
-
-summary(rf)
+#sequance is important
 ```
 
 ```{r}
-print(rf)
+od_data<-left_join(odbus7_9, busstop_mpsz,
+                   by=c("ORIGIN_PT_CODE"="BUS_STOP_N")) |> 
+  rename(ORIGIN_BS = ORIGIN_PT_CODE,
+         ORIGIN_SZ = SUBZONE_C,
+         DESTIN_BS = DESTINATION_PT_CODE)
+```
+Before we continue, it is a good practice for us to check for duplicate records.
+```{r}
+duplicate<-od_data |> 
+  group_by_all() |> 
+  filter(n()>1) |> 
+  ungroup()
 ```
 
-Comparing the R squared, we see that model's explanatory power increases using ranger. Comparing MSE, remb to take the square root of MSE
-
-### Geographic random forest using grf
-
-```{r eval=FALSE}
-set.seed(1234)
-gwRF_adaptive<-grf(formula = resale_price~floor_area_sqm + storey_order + remaining_lease_mths + PROX_CBD + PROX_ELDERLYCARE + PROX_HAWKER + PROX_MRT + PROX_PARK + PROX_MALL + PROX_SUPERMARKET + WITHIN_350M_KINDERGARTEN + WITHIN_350M_CHILDCARE + WITHIN_350M_BUS + WITHIN_1KM_PRISCH,
-                   dframe=train_data,
-                   bw=55, # need to know how to calculate using function
-                   kernel="adaptive",
-                   coords=coords_train)
-```
-
-determine bandwidth: - use grf.bw(formula, dataset, kernel, coordinates)
-
-results: 1. explanatory variable stats 2. predictive model stats
-
-```{r eval=FALSE}
-write_rds(gwRF_adaptive, "data/model/gwRF_adaptive.rds")
-```
-
-Read rds file into R
-
-```{r eval=FALSE}
-gwRF_adaptive<-read_rds("data/model/gwRF_adaptive.rds")
-```
-
-## Predicting by using test data
-
-### Preparing test data
-
-Code chunck below will be used to combine the test data with its corresponding coordinates data.
+If duplicated records are found, the code chunk below will be used to retain the unique records.
 
 ```{r}
-test_data<-cbind(test_data, coords_test) |> 
-  st_drop_geometry()
+od_data<-unique(od_data)
 ```
 
-### Predicting test data
+Bring in destination bus stop
+```{r}
+od_data<-left_join(od_data, busstop_mpsz,
+                   by=c("DESTIN_BS"="BUS_STOP_N"))
+```
+Check for duplicates again
+```{r}
+duplicate2<-od_data |> 
+  group_by_all() |> 
+  filter(n()>1) |> 
+  ungroup()
+```
+If duplicated records are found, the code chunk below will be used to retain the unique records.
 
-using predict.grf()
-
-```{r eval=FALSE}
-gwRF_pred<-predict.grd(gwRF_adpative,
-                       test_data,
-                       x_var.name="X",
-                       local.w=1, #calibrate local version
-                       global.w=0)
+```{r}
+od_data<-unique(od_data)
 ```
 
-plot ggplot (predicted values versus fitted model) - compare with ols plot
+```{r}
+od_data<-od_data |> 
+  rename(DESTIN_SZ=SUBZONE_C) |> 
+  drop_na()
+```
+ 
+It is time to save the output into an rds format
+
+```{r}
+write_rds(od_data, "data/rds/od_data.rds")
+
+```
+
+```{r}
+od_data <- read_rds("data/rds/od_data.rds")
+```
+## Visualising the Geospatial Data
+
+```{r}
+tmap_mode("plot")
+qtm(mpsz)
+```
+
+# Viewing the Subzone spatial file
+
+```{r}
+head(mpsz, 10)
+```
+
+# Isolating SUBZONE_C (subzone_code) into a new df
+```{r}
+mpsz <- mpsz[order(mpsz$SUBZONE_C),]
+head(mpsz,10)
+```
+## Computing Distance Matrix
+
+```{r}
+#converting to sp
+mpsz_sp <- as(mpsz, "Spatial")
+```
+
+```{r}
+#sp method instead of sf method
+dist <- spDists(mpsz_sp)
+dist
+```
+### Sorting the subzone name
+
+```{r}
+sz_names <- mpsz$SUBZONE_C
+```
+### Attaching SUZONE_C to row and column for distance matrix matching ahead
+
+```{r}
+colnames(dist) <- paste0(sz_names)
+rownames(dist) <- paste0(sz_names)
+```
+### Pivoting distance value by SUBONE_C
+
+```{r}
+#melt similar to pivot longer of dplyr
+distPair <- melt(dist) %>%
+  rename(dist = value)
+head(distPair, 10)
+```
+### Updating intra-zonal distances
+
+```{r}
+distPair %>%
+  filter(dist > 0) %>%
+  summary()
+```
+
+```{r}
+distPair$dist<-ifelse(distPair$dist==0,
+                      50, distPair$dist)
+```
+The code chunk below is used to rename the origin and destination fields.
+
+```{r}
+distPair<-distPair |> 
+  rename(orig=Var1,
+         dest=Var2)
+```
+
+```{r}
+flow_data<-od_data |> 
+  group_by(ORIGIN_SZ, DESTIN_SZ) |> 
+  summarise(TRIPS=sum(TRIPS))
+```
+Bring in pop data
+```{r}
+pop<-read_csv("data/aspatial/pop.csv")
+```
+```{r}
+pop<-pop |> 
+  left_join(mpsz,
+            by=c("PA"= "PLN_AREA_N",
+                       "SZ"="SUBZONE_N")) |> 
+  select(1:6) |> 
+  rename(SZ_NAME=SZ,
+         SZ=SUBZONE_C)
+```
+
+```{r}
+flow_data1<-flow_data |> 
+  left_join(distPair,
+            by=c("ORIGIN_SZ" = "orig",
+                 "DESTIN_SZ"="dest"))
+```
+
+Origin
+```{r}
+flow_data1<-flow_data1 |> 
+  left_join(pop,
+            by = c(ORIGIN_SZ="SZ")) |> 
+  rename(ORIGIN_AGE7_12 = AGE7_12,
+         ORIGIN_AGE13_24 = AGE13_24,
+         ORIGIN_AGE25_64 = AGE25_64) |> 
+  select(-c(PA, SZ_NAME))
+```
+
+Destination
+```{r}
+flow_data1<-flow_data1 |> 
+  left_join(pop,
+            by = c(DESTIN_SZ="SZ")) |> 
+  rename(DESTIN_AGE7_12 = AGE7_12,
+         DESTIN_AGE13_24 = AGE13_24,
+         DESTIN_AGE25_64 = AGE25_64) |> 
+  select(-c(PA, SZ_NAME))
+```
+

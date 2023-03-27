@@ -1266,7 +1266,7 @@ bw_grf_adaptive<-grf.bw(formula = PRICE~ Story_Ordinal + LEASE_YRS + AREA_SQM + 
 write_rds(bw_grf_adaptive, "data/model/bw_grf_adaptive.rds")
 ```
 
-we were unable to gain the bandwidth result even after extensive waiting. For the assignment requirementes, we will consider the bandwidths generated and choose the one that gives the highest R2 value. The output generated can be seen in the screenshots attached:
+we were unable to gain the bandwidth result even after extensive waiting. For the assignment requirements, we will consider the bandwidths generated and choose the one that gives the highest R2 value. The output generated can be seen in the screenshots attached:
 
 ![](images/photo_2023-03-22_20-54-38.jpg)
 
