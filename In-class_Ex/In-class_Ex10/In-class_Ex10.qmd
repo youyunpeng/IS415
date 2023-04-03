@@ -182,7 +182,6 @@ EucMatrix<-SpatialAcc::distance(hexagon_coord,
                                 type="euclidean")
 ```
 
-
 ## Modelling and Visualising accessibility using Hansen method
 
 ### Computing Hansen's accessibility

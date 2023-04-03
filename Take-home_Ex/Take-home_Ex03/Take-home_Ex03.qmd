@@ -1369,13 +1369,10 @@ In the last objective of this take home assignment, a comparison between the con
 
 As this task is focused on predictive modelling, a comparison between the OLS method (a method predominantly for explanatory models) and geographical random forest (for predictive modelling with geographical elements).
 
-+-------------------+--------------------------------------------+-------------------------------------------------------------+
 |                   | OLS                                        | Geographical random forest                                  |
-+===================+============================================+=============================================================+
+|-------------------|--------------------------------------------|-------------------------------------------------------------|
 | Main purpose      | Explanatory model for standard regressions | Predictive model for regressions with geographical elements |
-+-------------------+--------------------------------------------+-------------------------------------------------------------+
 | Seeks to minimise | residual sum of squares                    | mean squared error                                          |
-+-------------------+--------------------------------------------+-------------------------------------------------------------+
 
 With a basic understanding of how each model works, we hypothesise that the gwRF model will be the most appropriate for analysis, as it accounts for geographical elements included in the resale flat data, as well as the predictive aspect of this model.
 
