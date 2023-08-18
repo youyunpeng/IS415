@@ -478,16 +478,16 @@
   {
     "objectID": "index.html",
     "href": "index.html",
-    "title": "IS415",
+    "title": "IS415 - Geospatial Applications and Analytics",
     "section": "",
-    "text": "This is the course website of IS415 I study this term. You will find my course work on this website."
+    "text": "Welcome to my website!\nI am You Yun, a penultimate Economics and Data Science undergraduate student at the Singapore Management University. This website serves to offer a glimpse into my course work completed in Geospatial Analytics and Applications in SMU.\nThrough the course, I learned how to clean and wrangle geospatial data, and use statistical methods such as geospatial weighted regressions and other optimisation models to gather insights from geospatial data. Most of the data used is publicly sourced, and I invite you to try out some of the projects stated in the website along with me!\nPlease feel free to contact me if you have any questions or would like to discuss potential projects."
   },
   {
     "objectID": "about.html",
     "href": "about.html",
-    "title": "About",
+    "title": "About Me",
     "section": "",
-    "text": "1 + 1\n\n[1] 2"
+    "text": "Hi! I am You Yun, a Penultimate Economics and Data Science student at Singapore Management University. I enjoy working with data, and this website serves to document my course work in Geospatial Applications and Analytics (an Advanved module offered at SMU)."
   },
   {
     "objectID": "Untitled.html",
@@ -1174,5 +1174,19 @@
     "title": "In-class Exercise 8: Buiding hedonic pricing model with GWR",
     "section": "3 Aspatial data",
     "text": "3 Aspatial data\n\ncondo_resale = read_csv(\"data/aspatial/Condo_resale_2015.csv\")\n\n\ncondo_resale.sf <- st_as_sf(condo_resale,\n                            coords = c(\"LONGITUDE\", \"LATITUDE\"),\n                            crs = 4326) %>%\n  st_transform(crs = 3414)\n\nBuilding model\n\ncondo.mlr <- lm(formula = SELLING_PRICE ~ AREA_SQM + AGE    + \n                  PROX_CBD + PROX_CHILDCARE + PROX_ELDERLYCARE +\n                  PROX_URA_GROWTH_AREA + PROX_HAWKER_MARKET + PROX_KINDERGARTEN + \n                  PROX_MRT  + PROX_PARK + PROX_PRIMARY_SCH + \n                  PROX_TOP_PRIMARY_SCH + PROX_SHOPPING_MALL + PROX_SUPERMARKET + \n                  PROX_BUS_STOP + NO_Of_UNITS + FAMILY_FRIENDLY + FREEHOLD, \n                data=condo_resale.sf)\nsummary(condo.mlr)\n\n\nCall:\nlm(formula = SELLING_PRICE ~ AREA_SQM + AGE + PROX_CBD + PROX_CHILDCARE + \n    PROX_ELDERLYCARE + PROX_URA_GROWTH_AREA + PROX_HAWKER_MARKET + \n    PROX_KINDERGARTEN + PROX_MRT + PROX_PARK + PROX_PRIMARY_SCH + \n    PROX_TOP_PRIMARY_SCH + PROX_SHOPPING_MALL + PROX_SUPERMARKET + \n    PROX_BUS_STOP + NO_Of_UNITS + FAMILY_FRIENDLY + FREEHOLD, \n    data = condo_resale.sf)\n\nResiduals:\n     Min       1Q   Median       3Q      Max \n-3475964  -293923   -23069   241043 12260381 \n\nCoefficients:\n                       Estimate Std. Error t value Pr(>|t|)    \n(Intercept)           481728.40  121441.01   3.967 7.65e-05 ***\nAREA_SQM               12708.32     369.59  34.385  < 2e-16 ***\nAGE                   -24440.82    2763.16  -8.845  < 2e-16 ***\nPROX_CBD              -78669.78    6768.97 -11.622  < 2e-16 ***\nPROX_CHILDCARE       -351617.91  109467.25  -3.212  0.00135 ** \nPROX_ELDERLYCARE      171029.42   42110.51   4.061 5.14e-05 ***\nPROX_URA_GROWTH_AREA   38474.53   12523.57   3.072  0.00217 ** \nPROX_HAWKER_MARKET     23746.10   29299.76   0.810  0.41782    \nPROX_KINDERGARTEN     147468.99   82668.87   1.784  0.07466 .  \nPROX_MRT             -314599.68   57947.44  -5.429 6.66e-08 ***\nPROX_PARK             563280.50   66551.68   8.464  < 2e-16 ***\nPROX_PRIMARY_SCH      180186.08   65237.95   2.762  0.00582 ** \nPROX_TOP_PRIMARY_SCH    2280.04   20410.43   0.112  0.91107    \nPROX_SHOPPING_MALL   -206604.06   42840.60  -4.823 1.57e-06 ***\nPROX_SUPERMARKET      -44991.80   77082.64  -0.584  0.55953    \nPROX_BUS_STOP         683121.35  138353.28   4.938 8.85e-07 ***\nNO_Of_UNITS             -231.18      89.03  -2.597  0.00951 ** \nFAMILY_FRIENDLY       140340.77   47020.55   2.985  0.00289 ** \nFREEHOLD              359913.01   49220.22   7.312 4.38e-13 ***\n---\nSignif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1\n\nResidual standard error: 755800 on 1417 degrees of freedom\nMultiple R-squared:  0.6518,    Adjusted R-squared:  0.6474 \nF-statistic: 147.4 on 18 and 1417 DF,  p-value: < 2.2e-16"
+  },
+  {
+    "objectID": "about.html#education",
+    "href": "about.html#education",
+    "title": "About Me",
+    "section": "Education",
+    "text": "Education\nSingapore Management University B.A in Economics with a second major in Data Science | Aug 2021 - May 2025"
+  },
+  {
+    "objectID": "about.html#experience",
+    "href": "about.html#experience",
+    "title": "About Me",
+    "section": "Experience",
+    "text": "Experience\nEconomic Development Board Resource and Carbon Intern | Jun 2023 - Aug 2023\nCompetition and Consumer Commission Singapore Business and Economics Intern | May 2022 - Aug 2022"
   }
 ]

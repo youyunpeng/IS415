@@ -1,7 +1,28 @@
 ---
-title: "IS415"
+about:
+  template: jolla
+  id: about-block
+  image: profile.jpeg
+  links:
+    - icon: linkedin
+      text: linkedin
+      href: https://www.linkedin.com/in/peng-you-yun/
+    - icon: github
+      text: Github
+      href: https://github.com/youyunpeng
+    - icon: envelope
+      text: Email
+      href: "mailto:youyun.peng.2021@smu.edu.sg"  
 ---
 
-Welcome to IS415 Geospatial Analytics and Applications
+::: {#about-block}
+:::
 
-This is the course website of **IS415** I study this term. You will find my course work on this website.
+# Welcome to my website!
+
+I am You Yun, a penultimate Economics and Data Science undergraduate student at the Singapore Management University. This website serves to offer a glimpse into my course work completed in Geospatial Analytics and Applications in SMU. 
+
+Through the course, I learned how to clean and wrangle geospatial data, and use statistical methods such as geospatial weighted regressions and other optimisation models to gather insights from geospatial data. Most of the data used is publicly sourced, and I invite you to try out some of the projects stated in the website along with me!
+
+Please feel free to [contact me](mailto:youyun.peng.2021@smu.edu.sg) if you have any questions or would like to discuss potential projects.
+

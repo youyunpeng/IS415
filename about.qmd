@@ -1,9 +1,27 @@
 ---
-title: "About"
+title: "About Me"
+about: 
+  template: trestles
+  image: profile.jpeg
+  links: 
+    - icon: linkedin
+      text: linkedin
+      href: https://www.linkedin.com/in/peng-you-yun/
+    - icon: github
+      text: Github
+      href: https://github.com/youyunpeng
 ---
 
-About this site
+Hi! I am You Yun, a Penultimate Economics and Data Science student at Singapore Management University. I enjoy working with data, and this website serves to document my course work in Geospatial Applications and Analytics (an Advanved module offered at SMU).
 
-```{r}
-1 + 1
-```
+## Education
+
+**Singapore Management University** B.A in Economics with a second major in Data Science \| Aug 2021 - May 2025
+
+## Experience
+
+**Economic Development Board** Resource and Carbon Intern \| Jun 2023 - Aug 2023
+
+**Competition and Consumer Commission Singapore** Business and Economics Intern \| May 2022 - Aug 2022
+
+## 
